@@ -1,0 +1,91 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skillshelf-test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Linux / Node.js ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+
+    steps:
+      - name: Check out standalone source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Set up Python for POSIX terminal tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create private temporary test directories
+        run: |
+          set -euo pipefail
+          # A private child of sticky /tmp avoids permissive checkout ancestors.
+          work="$(mktemp -d /tmp/skillshelf-ci.XXXXXX)"
+          mkdir -m 700 "$work/tests"
+          {
+            printf 'SKILLSHELF_CI_TMP=%s\n' "$work"
+            printf 'SKILLSHELF_TEST_TMP=%s/tests\n' "$work"
+            printf 'SKILLSHELF_TEST_CATALOG=%s/packages/catalog.development.json\n' "$work"
+          } >> "$GITHUB_ENV"
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+
+      - name: Build CLI and validate committed source metadata
+        run: |
+          npm run build
+          npm run validate
+
+      - name: Prepare and verify local test artifacts
+        run: |
+          node scripts/pack-skills.mjs --output "$SKILLSHELF_CI_TMP/packages" --write-bootstrap
+          node scripts/copy-catalog.mjs
+          npm run validate
+          node scripts/validate-catalog.mjs --catalog "$SKILLSHELF_TEST_CATALOG" --development
+
+      - name: Run Node tests including lifecycle and crash recovery
+        run: npm test
+
+      - name: Run local POSIX terminal smoke tests
+        run: |
+          python3 tests/terminal-smoke.py \
+            --cli packages/cli/dist/index.js \
+            --catalog "$SKILLSHELF_TEST_CATALOG" \
+            --tmp "$SKILLSHELF_TEST_TMP"
+
+      - name: Verify release preparation and actual CLI archive
+        run: |
+          npm pack --workspace packages/cli --ignore-scripts --pack-destination "$SKILLSHELF_CI_TMP/packages"
+          artifact="$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const p=JSON.parse(readFileSync("packages/cli/package.json","utf8")); process.stdout.write(p.name.replace(/^@/,"").replace("/","-")+"-"+p.version+".tgz");')"
+          node scripts/audit-cli-package.mjs "$SKILLSHELF_CI_TMP/packages/$artifact"
+          node scripts/prepare-release.mjs --output "$SKILLSHELF_CI_TMP/packages" --cli-tarball "$SKILLSHELF_CI_TMP/packages/$artifact"
+
+      # Hosted runners discard these temporary artifacts after the job.
+      # No provider keys, registry login, publication, release, or deployment steps.

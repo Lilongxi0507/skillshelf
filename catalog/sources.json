@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scope": "@llx17669475",
+  "version": "0.1.0-preview.1",
+  "repositories": {
+    "taste": {"repository":"Leonxlnx/taste-skill","commit":"5217fb45be2c0b302f29c9cd31cbd3237501c684"},
+    "uiux": {"repository":"nextlevelbuilder/ui-ux-pro-max-skill","commit":"dcc40ff5133ef78276117db0cc34e7b83cc8aeba"}
+  },
+  "skills": [
+    {"name":"design-taste-frontend","source":"taste","path":"skills/taste-skill","title":"Taste 前端设计","description":"以审美、布局和工程约束生成有辨识度的前端页面。","useWhen":"从简报开始制作落地页、作品集或重设计。","category":"design","collection":"taste","status":"recommended","tags":["frontend","taste","网页"],"examples":["为产品构建有辨识度的营销页。"]},
+    {"name":"design-taste-frontend-v1","source":"taste","path":"skills/taste-skill-v1","title":"Taste 前端设计 v1","description":"保留 Taste v1 原版设计方法，适合已有工作流兼容。","useWhen":"需要延续旧版 Taste 设计方向时。","category":"design","collection":"taste","status":"legacy","tags":["frontend","legacy"],"examples":["按 v1 设计规范延续已有页面。"]},
+    {"name":"gpt-taste","source":"taste","path":"skills/gpt-tasteskill","title":"GPT Taste","description":"面向 GPT 的高质量 UI 与前端生成约束。","useWhen":"使用 GPT 系列模型进行前端设计与实现。","category":"design","collection":"taste","status":"stable","tags":["gpt","frontend"],"examples":["用 GPT 生成质感统一的页面。"]},
+    {"name":"image-to-code","source":"taste","path":"skills/image-to-code-skill","title":"图片转代码","description":"依据视觉参考和截图还原可维护前端实现。","useWhen":"用户提供截图或图像参考，需要转成页面。","category":"design","collection":"taste","status":"stable","tags":["image","screenshot"],"examples":["依据截图重建页面布局。"]},
+    {"name":"imagegen-frontend-web","source":"taste","path":"skills/imagegen-frontend-web","title":"生成式网页视觉","description":"将图片生成与网页视觉实现结合的设计指导。","useWhen":"网页需要原创视觉素材并与版式融合。","category":"design","collection":"taste","status":"stable","tags":["imagegen","web"],"examples":["为品牌网页规划原创图片素材。"]},
+    {"name":"imagegen-frontend-mobile","source":"taste","path":"skills/imagegen-frontend-mobile","title":"生成式移动端视觉","description":"结合图片生成规划移动端界面和视觉资源。","useWhen":"设计移动端产品界面与相关图像素材。","category":"design","collection":"taste","status":"stable","tags":["imagegen","mobile"],"examples":["设计适合手机的原创视觉界面。"]},
+    {"name":"brandkit","source":"taste","path":"skills/brandkit","title":"品牌设计套件","description":"制定品牌视觉语言及一致的前端呈现。","useWhen":"需要品牌字体、色彩和视觉系统。","category":"design","collection":"taste","status":"stable","tags":["brand","identity"],"examples":["为新产品制定品牌视觉方案。"]},
+    {"name":"redesign-existing-projects","source":"taste","path":"skills/redesign-skill","title":"现有项目重设计","description":"先审视已有项目再改善视觉和交互质量。","useWhen":"已有代码和界面需要有依据地升级。","category":"design","collection":"taste","status":"recommended","tags":["redesign","audit"],"examples":["保留功能的同时升级项目视觉。"]},
+    {"name":"high-end-visual-design","source":"taste","path":"skills/soft-skill","title":"高端视觉设计","description":"强调细节、层次和高级感的视觉设计方法。","useWhen":"页面需要精致、柔和且有品质感的表现。","category":"design","collection":"taste","status":"stable","tags":["visual","high-end"],"examples":["打磨页面的字体与视觉层次。"]},
+    {"name":"full-output-enforcement","source":"taste","path":"skills/output-skill","title":"完整输出约束","description":"约束代码输出完整性，减少占位和省略实现。","useWhen":"需要可直接采用且无截断的代码输出。","category":"engineering","collection":"taste","status":"stable","tags":["code","completeness"],"examples":["完整输出实现，不用省略占位符。"]},
+    {"name":"minimalist-ui","source":"taste","path":"skills/minimalist-skill","title":"极简 UI","description":"以克制布局、留白和字体构建极简界面。","useWhen":"任务适合极简而清晰的视觉方向。","category":"design","collection":"taste","status":"stable","tags":["minimal","ui"],"examples":["设计克制清晰的个人作品集。"]},
+    {"name":"industrial-brutalist-ui","source":"taste","path":"skills/brutalist-skill","title":"工业粗野主义 UI","description":"构建鲜明的工业与粗野主义风格界面。","useWhen":"项目明确需要硬朗、结构化的视觉方向。","category":"design","collection":"taste","status":"stable","tags":["industrial","brutalist"],"examples":["为展览设计工业风页面。"]},
+    {"name":"stitch-design-taste","source":"taste","path":"skills/stitch-skill","title":"Stitch 设计 Taste","description":"面向 Stitch 工作流的高审美设计指导。","useWhen":"使用 Stitch 生成或迭代界面。","category":"design","collection":"taste","status":"experimental","tags":["stitch","design"],"examples":["为 Stitch 编写有方向的设计提示。"]},
+    {"name":"ui-ux-pro-max","source":"uiux","path":".claude/skills/ui-ux-pro-max","title":"UI/UX Pro Max","description":"完整 UI/UX 数据、参考文档与检索脚本，覆盖多技术栈。","useWhen":"需要查询设计模式、配色、字体或技术栈建议。","category":"design","collection":"uiux","status":"recommended","tags":["ui","ux","design-system"],"examples":["查询适合产品的设计系统与技术栈建议。"]},
+    {"name":"skillshelf-web-search","source":"first-party","path":"clients/skills/panel-web-search","title":"本地智能联网搜索","description":"本机直连 Tavily/Brave，返回可追溯来源，不依赖面板。","useWhen":"查找最新信息、官网和文档，比较方案与核实事实。","category":"research","collection":"local-tools","status":"recommended","tags":["search","tavily","brave"],"examples":["找到项目官方文档并核实当前用法。"]},
+    {"name":"skillshelf-media-generation","source":"first-party","path":"clients/skills/panel-media-generation","title":"本地图片与视频生成","description":"完整标准库脚本直连图片/视频服务，保存本地任务与成品。","useWhen":"生成图片、参考图编辑、文生视频、首尾帧和参考媒体生成。","category":"media","collection":"local-tools","status":"recommended","tags":["image","video","generation"],"examples":["生成横版海报并保存到本地。"]}
+  ]
+}

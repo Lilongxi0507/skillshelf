@@ -1,0 +1,18 @@
+{
+  "name": "skillshelf-workspace",
+  "version": "0.1.0-preview.1",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/cli"],
+  "engines": { "node": ">=22.20.0" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-catalog.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "validate": "node scripts/validate-catalog.mjs",
+    "pack:skills": "node scripts/pack-skills.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "5.9.3"
+  }
+}

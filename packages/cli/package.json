@@ -1,0 +1,22 @@
+{
+  "name": "@llx17669475/skillshelf",
+  "version": "0.1.0-preview.1",
+  "description": "个人精选、本机共享的完整 Agent 技能库",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.20.0" },
+  "bin": { "skillshelf": "dist/index.js" },
+  "files": ["dist/", "README.md", "LICENSE"],
+  "publishConfig": { "access": "public", "tag": "next" },
+  "repository": { "type": "git", "url": "https://github.com/Lilongxi0507/skillshelf.git", "directory": "packages/cli" },
+  "homepage": "https://github.com/Lilongxi0507/skillshelf#readme",
+  "bugs": { "url": "https://github.com/Lilongxi0507/skillshelf/issues" },
+  "dependencies": {
+    "@clack/prompts": "1.8.1",
+    "commander": "14.0.1",
+    "picocolors": "1.1.1",
+    "tar": "7.5.22",
+    "yaml": "2.8.3",
+    "zod": "4.1.12"
+  }
+}

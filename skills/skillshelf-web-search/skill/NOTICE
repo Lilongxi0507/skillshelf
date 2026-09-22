@@ -1,0 +1,14 @@
+SkillShelf first-party snapshot and adaptation
+
+Original project: panel (local repository, used with owner authorization).
+Original sources retained in full before the documented standalone adaptation.
+Original NOTICE files, when present, follow below. No original NOTICE file was present in the approved input directories at snapshot time.
+
+Changes: renamed product/commands/environment variables; provider environment references; safe error output; independent output directory. No panel network dependency.
+
+Original source SHA-256:
+939b14c1173fd2441d2ad2d30c76cdb26e26b3d4b4cd122f31317f11ece81ea7  SKILL.md
+7b68dc09cac0aea5ecfa282ad00a31696c4b67ea87bd933c65cc82e77732a442  local-run.json
+118b239ad12e5da25d8fff07e12de7c60db821c85f207af847e3bb462050cad7  references/api.md
+81fb73493fc50323095fd158d3f1f5b89f6ffa7dad0c2c4335c1cf8b26c0d448  scripts/direct.py
+e9a34cdd83298c6c118766ff12342546dbc34ac809dcb75b9973c0023f2c672c  scripts/run.py

@@ -1,0 +1,18 @@
+SkillShelf first-party snapshot and adaptation
+
+Original project: panel (local repository, used with owner authorization).
+Original sources retained in full before the documented standalone adaptation.
+Original NOTICE files, when present, follow below. No original NOTICE file was present in the approved input directories at snapshot time.
+
+Changes: renamed product/commands/environment variables; provider environment references; safe error output; independent output directory. No panel network dependency.
+
+Original source SHA-256:
+7e8627bffadc1fd6116763da98ec2144ab54bed94e32a57b3ef0b9824f1b0486  SKILL.md
+7b68dc09cac0aea5ecfa282ad00a31696c4b67ea87bd933c65cc82e77732a442  local-run.json
+075dd275a88622405b73b32dd5cce2b009b6bb8d499bab70e1b47ec32246085d  references/images.md
+d264ac8075c0652f17ac033a35e583bb8c945fcb36e9f7baadacc191ec2706a8  references/videos.md
+81fb73493fc50323095fd158d3f1f5b89f6ffa7dad0c2c4335c1cf8b26c0d448  scripts/direct.py
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/protocols/__init__.py
+93b9ef1b3bf53e9f0623e5c9c451854b9336018cdf6c6cd5821f0b169d6ff666  scripts/protocols/media_profiles.py
+2456e9c00d03ca15c3ec1ab9b7f998701685900795018aed97ef884da94fc8ed  scripts/protocols/video_protocol.py
+9e9639d6516cb9f2246cf1a33e248e46e08032c331cdb343fb5b4696a135155a  scripts/run.py

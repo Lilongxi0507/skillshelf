@@ -1,0 +1,15 @@
+# Dependencies, generated packages and credentials are not source.
+node_modules/
+dist/
+coverage/
+*.tgz
+*.zip
+.env
+.env.*
+.npmrc
+__pycache__/
+*.pyc
+
+# Reviewed, pinned upstream CSV/JSON files are complete skill source assets.
+!skills/ui-ux-pro-max/skill/data/
+!skills/ui-ux-pro-max/skill/data/**
