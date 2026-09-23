@@ -4,7 +4,7 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **公开预览版已上架。** `0.1.0-preview.1` 的 16 个技能包、目录包和 CLI 共 18 个包已发布到 npm；确切版本、`next` 标签和公共下载包的 SHA-512 均已核对。[冻结源码 `f5fe8f4` 的原生跨平台 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35820368322)在 Linux、macOS、Windows 的 Node.js 22/24 作业通过；公开 npm 包的独立安装与核心流程已在 Linux 验证，macOS/Windows 的公开安装验证仍待执行。详情见[公开验证记录](PUBLIC-VERIFICATION.md)。
+> **公开预览版已上架。** `0.1.0-preview.2` 的 16 个技能包、目录包和 CLI 共 18 个包已通过 GitHub Actions Trusted Publishing 发布到 npm；确切版本、`next` 标签、公共下载包的 SHA-512 和 provenance 均已核对。[发布运行 `35893524822`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35893524822)在 Linux、macOS、Windows 的 Node.js 22/24 作业通过；[公共 npm smoke `35918416358`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35918416358)的六组作业也全部通过。详情见[公开验证记录](PUBLIC-VERIFICATION.md)。
 >
 > 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
@@ -78,7 +78,7 @@ skillshelf disable ui-ux-pro-max --agent codex --yes
 
 可通过 `SKILLSHELF_HOME` 或 `--home` 指定独立目录。数据 home 与 Agent 扫描根不能互相包含。受管内容不应直接编辑；使用 `fork` 创建独立可编辑副本。
 
-**平台验证范围：** 同一组发布候选包已在 Linux、macOS、Windows 的 Node.js 22/24 原生 CI 上完成安装与核心流程验证；Windows 还验证了实际打包 CLI 的 `.cmd` 入口、私有 ACL 与中断恢复。另已在 Linux 从公共 npm 安装并验证目录刷新、16 项列表、按需安装、受管副本和 `verify`；macOS/Windows 的公共 npm 安装仍待验证。各系统的跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
+**平台验证范围：** 同一组发布候选包已在 Linux、macOS、Windows 的 Node.js 22/24 原生 CI 上完成安装与核心流程验证；Windows 还验证了实际打包 CLI 的 `.cmd` 入口、私有 ACL 与中断恢复。公共 npm smoke 也在六组平台作业中完成了安装与核心流程检查。各系统的跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
 
 ## 更新、固定版本与回滚
 
@@ -167,8 +167,8 @@ skillshelf gc --yes                    # 保留已记录历史与备份
 ## 参与开发
 
 - [贡献指南](CONTRIBUTING.md)：依赖、构建和本地验证步骤。
-- [发布说明](docs/release.md)：公开源码范围、18 包发布顺序与发布门禁。
+- [发布说明](docs/release.md)：公开源码范围、18 包发布顺序、Trusted Publishing 和发布门禁。
 - [公开验证记录](PUBLIC-VERIFICATION.md)：实际执行的检查、平台与仍未验证的限制。
 - [目录说明](catalog/README.md)：来源、内容包、校验和离线目录。
 
-本工程无需其他仓库的源码、服务配置或业务数据即可使用已收录的技能快照。测试 CI 不持有发布凭据，也不发布 npm 包；仓库另备有手动触发的 Trusted Publishing 工作流，须在 npm 为各包完成绑定并实测后才能用于后续版本。
+本工程无需其他仓库的源码、服务配置或业务数据即可使用已收录的技能快照。测试 CI 不持有发布凭据；手动触发的 Trusted Publishing 工作流只在审计、六组原生作业和公共 registry 检查通过后发布。

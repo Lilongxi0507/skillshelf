@@ -2,9 +2,9 @@
 
 ## 当前状态
 
-首个公开预览版为 **`0.1.0-preview.1`，指定发布通道 `next`**。npm 命名空间为 `@llx17669475`，独立公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
+当前公开预览版为 **`0.1.0-preview.2`，指定发布通道 `next`**。npm 命名空间为 `@llx17669475`，独立公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
-**截至 2026-09-23，首个公开预览版的 18 个 npm 包均已发布。** 冻结源码 [`f5fe8f4` 的原生 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35820368322)已通过 Linux、macOS、Windows 的 Node.js 22/24 六组作业及生产作业。公开 registry 中 18 个确切版本、`next` 标签和下载 tarball 的 SHA-512 均与冻结计划相符；Linux 已完成公共 npm 安装及核心流程验证。macOS/Windows 的公共 npm 安装验证仍待执行，详见[公开验证记录](../PUBLIC-VERIFICATION.md)。
+**截至 2026-09-23，`0.1.0-preview.2` 的 18 个 npm 包均已通过 Trusted Publishing 发布。** [发布运行 `35893524822`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35893524822)已通过打包审计、Linux/macOS/Windows 的 Node.js 22/24 六组作业和 OIDC 发布作业。[公共 smoke `35918416358`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35918416358)也在六组平台作业中通过；公开 registry 的版本、`next`、tarball SHA-512 和 provenance 已逐包回读，详见[公开验证记录](../PUBLIC-VERIFICATION.md)。
 
 用户安装命令：
 
@@ -20,7 +20,7 @@ npm install -g @llx17669475/skillshelf@next
 | 2 | `@llx17669475/skillshelf-catalog` | 1 | 精确版本、来源、摘要等元数据，不含技能正文 |
 | 3 | `@llx17669475/skillshelf` | 1 | 编译后的 CLI、bootstrap 元数据、README、LICENSE |
 
-首发各包均使用 `0.1.0-preview.1`，公开访问权限为 `public`，指定 npm dist-tag 为 `next`。npm 首次发布时还自动创建了指向该预览版的 `latest` 标签；该标签不表示已有稳定版，安装说明仍显式使用 `next`。之后 CLI、目录与技能可以独立发版；内容变动必须发布新确切版本，不得覆盖旧版本或复用过期 SRI。
+本次各包均使用 `0.1.0-preview.2`，公开访问权限为 `public`，指定 npm dist-tag 为 `next`。首次发布时 npm 自动创建的 `latest` 标签仍可能指向预览版；它不表示已有稳定版，安装说明仍显式使用 `next`。之后 CLI、目录与技能可以独立发版；内容变动必须发布新确切版本，不得覆盖旧版本或复用过期 SRI。
 
 预览 CLI 的目录检查/刷新、程序更新检查应统一跟随 `next`。技能获取始终使用已审目录或项目锁中的确切版本与 SHA-512，不把技能 dist-tag 当成内容身份。
 
@@ -79,29 +79,28 @@ npm install -g @llx17669475/skillshelf@next
 
 ## 首发核验与后续版本门禁
 
-前五项是每次新版本均须重新执行的门禁，故保留未勾选；已勾选的项目只记录 `0.1.0-preview.1` 的实际结果，不自动适用于后续版本。末尾未勾选项是首发后仍待完成的验收与配置。
+前五项是每次新版本均须重新执行的门禁，故保留未勾选；已勾选的项目记录 `0.1.0-preview.2` 的实际结果，不自动适用于后续版本。
 
 - [ ] 所有包身份、源码链接、固定命名空间白名单、第一方执行校验、锁文件、测试与 `next` 更新通道一致。
 - [ ] 所有来源 commit、原始版权、LICENSE/NOTICE、第三方数据和嵌入资源许可均已复核；不把第三方内容重新改许可证。
 - [ ] 独立公开源码只含白名单文件，静态敏感扫描和人工审查完成；没有真密钥、内部部署配置或工作数据；维护工具的拒写路径与合法来源归属不属于凭据。
 - [ ] 最终 16 个技能包、目录包与 CLI 包均由最终源码生成，bootstrap 指向确切 artifact 字节；公共内容中没有 `localArtifact`。
 - [ ] 安装、构建、Node 测试、关键生命周期/崩溃恢复测试、PTY、实际包审计和真正 npm bin 验证已按实际环境记录结果。
-- [x] [`f5fe8f4` 的 Linux、macOS、Windows 原生 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35820368322)通过 Node.js 22/24 构建、适用测试与同一实际 CLI tarball 的安装验证；逐平台结果和跳过项见[公开验证记录](../PUBLIC-VERIFICATION.md)。后续源码或打包内容变化须重新验证。
+- [x] [`c048be9` 的 Linux、macOS、Windows 原生 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35893524822)通过 Node.js 22/24 构建、适用测试与同一实际 CLI tarball 的安装验证；公共 npm smoke 运行 `35918416358` 的六组作业也通过，逐平台结果见[公开验证记录](../PUBLIC-VERIFICATION.md)。后续源码或打包内容变化须重新验证。
 - [x] 该次原生 CI 覆盖 macOS 的 POSIX 权限与链接、Windows 的私有 ACL、`.cmd` 入口与受管复制/链接，以及跨平台中断恢复。POSIX 专用终端及夹具测试在 Windows 跳过；各 Agent 原生加载及真实付费 provider 调用未实测，在预览说明中明确标注。
-- [x] 发布者按 16 个技能数据包 → 目录 → CLI 的顺序手动发布全部 18 个包，显式指定 `--access public --tag next`。
-- [x] 从公共 registry 回读全部 18 个包的确切版本与 `next` 标签，下载 tarball 核对与冻结计划一致的 SHA-512；Linux 从公共 npm 新装 CLI 并完成目录刷新、16 项列表、按需安装、受管 Agent 副本与 `verify`。
-- [ ] 在 macOS、Windows 从公共 npm 新装已发布版本并执行核心流程；当前通过的是同一候选包的原生 CI，并非这两端的公共安装验收。
-- [ ] 为后续发布在 npm 为每个目标包配置 GitHub Actions Trusted Publishing，并成功执行手动 OIDC 发布工作流；目前尚未配置或验证。provenance 签名也尚未验证。
+- [x] 发布者按 16 个技能数据包 → 目录 → CLI 的顺序通过 `publish.yml` 发布全部 18 个包，使用 GitHub OIDC、`--access public --tag next`，没有长期 npm token。
+- [x] 从公共 registry 回读全部 18 个包的确切版本、`next` 标签、tarball SHA-512 和 provenance；CLI 从公共 npm 安装后真实 bin 返回 `0.1.0-preview.2`。
+- [x] 公共 smoke 在 Linux、macOS、Windows 的 Node.js 22/24 上从 npm 安装并执行核心流程。
 
 现有 `.github/workflows/ci.yml` 保持只读，无 `id-token: write` 或 npm 发布步骤。新增的 `.github/workflows/public-smoke.yml` 是手动公共安装验证；`.github/workflows/publish.yml` 是单独的手动发布流程，只有其发布作业申请 `id-token: write`，不使用长期 npm token。工作流文件本身不能证明 npm 端已完成绑定；若使用 provenance，必须真实生成并验证后再描述，不能用摘要校验冒充签名验证。
 
 ### 为后续版本配置 npm Trusted Publishing
 
-1. 维护者在 npm 官方包设置中，逐一为需要由工作流发布的包添加 GitHub Actions 受信任发布者。首发已有 16 个技能包、1 个目录包和 1 个 CLI 包，共 18 个独立包身份；绑定目标为 GitHub 用户 `Lilongxi0507`、仓库 `skillshelf`、工作流文件 `publish.yml`。若未来只发布其中一部分包，仍须确认每个目标包的绑定。
+1. 维护者在 npm 官方包设置中，逐一为需要由工作流发布的包添加 GitHub Actions 受信任发布者。当前有 16 个技能包、1 个目录包和 1 个 CLI 包，共 18 个独立包身份；绑定目标为 GitHub 用户 `Lilongxi0507`、仓库 `skillshelf`、工作流文件 `publish.yml`。若新增技能包或只发布其中一部分包，仍须确认每个目标包的绑定。
 2. 提交并审查手动触发的 `.github/workflows/publish.yml`。它必须从受审的 `main` 分支构建新版本，通过包审计和 Linux/macOS/Windows 原生作业，再用 GitHub OIDC 发布冻结包；不得加入 npm 长期 token 或跳过审计。
-3. 新版本发布前重新生成并核对 `publication-plan.json`，确认所有目标确切版本未与公共 registry 冲突、预期标签为 `next`。维护者手动触发工作流并核对日志、全部公共确切版本、`next` 标签及下载摘要。首次成功前，不能宣称 Trusted Publishing 已可用或以后无需官方验证。
+3. 新版本发布前重新生成并核对 `publication-plan.json`，确认所有目标确切版本未与公共 registry 冲突、预期标签为 `next`。维护者手动触发工作流并核对日志、全部公共确切版本、`next` 标签、下载摘要和 provenance。当前 OIDC 路径已经用 `0.1.0-preview.2` 实际跑通；账号策略、仓库/工作流名称变化或新增包仍可能需要维护者重新确认配置。
 
-配置 npm 包的受信任发布者是维护者的一次性账号操作；完成且实际跑通后，后续同一包使用该工作流发布通常无需逐包完成浏览器 2FA。npm 账号策略、仓库/工作流名称变化或新增包仍可能需要维护者重新确认配置。
+配置 npm 包的受信任发布者是维护者的一次性账号操作；完成且实际跑通后，后续同一包使用该工作流发布通常无需逐包完成浏览器 2FA。它不等于永久免验证，也不自动授权未来版本或新增包。
 
 ## 旧占位版与回滚
 
