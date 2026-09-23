@@ -25,7 +25,7 @@ npm run validate
 
 ## 完整本地验证
 
-下面是 Linux/macOS 的 POSIX shell 示例。macOS 上可运行不代表已经获得实机验收；Windows 不适用这些 shell 与 PTY 步骤。
+下面是 Linux/macOS 的 POSIX shell 示例；是否通过实机验收以[公开验证记录](PUBLIC-VERIFICATION.md)为准。Windows 不适用这些 shell 与 PTY 步骤。
 
 ```bash
 # 新建仓库外的临时根；只使用本次输出，不覆盖任何既有发布包。
@@ -61,9 +61,9 @@ node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_t
 
 ## CI 的范围
 
-`.github/workflows/ci.yml` 是**测试工作流，不是发布工作流**：在 Linux 上使用 Node.js 22/24，构建、验证目录、打本地测试包、运行 Node/PTY 测试并审计 CLI tarball。仓库权限仅为读取，不配置发布凭据，不发布 npm 包，不创建 release。
+`.github/workflows/ci.yml` 是**测试工作流，不是发布工作流**：在 Linux 上生成并审计一组实际发布候选包；Linux、macOS、Windows 的 Node.js 22/24 原生作业下载同一组包，构建、运行适用测试，并从实际 CLI tarball 安装验证。Linux/macOS 另跑 POSIX PTY 测试，Windows 使用原生命令与 ACL 测试。仓库权限仅为读取，不配置发布凭据，不发布 npm 包，不创建 release。
 
-工作流定义尚不能作为成功证据；请查看实际运行结果。Linux 作业不覆盖 macOS/Windows 的真实 ACL、链接、文件系统恢复与原生 Agent 加载；这些仍需单独实测。不要将跳过的平台标记为通过。
+工作流定义尚不能作为成功证据；请查看[实际运行结果和跳过项](PUBLIC-VERIFICATION.md)。这些作业测试隔离目录中的核心流程，不证明每种 Agent 已原生加载技能，也不调用真实付费服务商。不要将跳过的检查标记为通过。
 
 ## 修改边界与提交要求
 

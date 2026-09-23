@@ -32,7 +32,7 @@ npm install -g @llx17669475/skillshelf@next
 
 | 白名单 | 条件 |
 |---|---|
-| `README.md`、`CONTRIBUTING.md`、`LICENSE`、`.gitignore` | 公开说明、原有版权、独立工程忽略规则 |
+| `README.md`、`CONTRIBUTING.md`、`LICENSE`、`.gitignore`、`.gitattributes` | 公开说明、原有版权、独立工程忽略规则；禁用 Git 换行转换以保留快照原始字节 |
 | `package.json`、`package-lock.json`、`tsconfig.json` | 包身份、锁文件与 TypeScript 配置；无私有 registry 或凭据 |
 | `.github/workflows/ci.yml` | 只读仓库权限，仅验证；无发布步骤、发布凭据或部署权限 |
 | `packages/cli/package.json`、`packages/cli/README.md`、`packages/cli/LICENSE` | 核对包名、版本、源码地址与公开 files 清单 |
@@ -82,8 +82,8 @@ npm install -g @llx17669475/skillshelf@next
 - [ ] 独立公开源码只含白名单文件，静态敏感扫描和人工审查完成；没有真密钥、内部部署配置或工作数据；维护工具的拒写路径与合法来源归属不属于凭据。
 - [ ] 最终 16 个技能包、目录包与 CLI 包均由最终源码生成，bootstrap 指向确切 artifact 字节；公共内容中没有 `localArtifact`。
 - [ ] 安装、构建、Node 测试、关键生命周期/崩溃恢复测试、PTY、实际包审计和真正 npm bin 验证已按实际环境记录结果。
-- [ ] CI 的 Linux Node.js 22/24 作业已实际运行并检查结果；没有把配置存在当成测试成功。
-- [ ] macOS、Windows 的 ACL、链接/copy、文件系统恢复及各 Agent 原生发现状态如实标注。未实测不得标为通过，Linux 测试不替代这些验收。
+- [ ] Linux、macOS、Windows 的原生 CI 作业已实际通过 Node.js 22/24 构建、完整适用测试，并从最终 CLI tarball 安装，验证版本、目录读取、按需安装、`verify`、项目锁与受管 Agent 目录投影等核心流程；逐平台检查失败和跳过项，不能把配置存在当成通过。
+- [ ] macOS、Windows 的 ACL、链接/copy 与中断恢复在原生系统上有对应验证。仅适用于 POSIX 的 PTY/SIGKILL 用例可以在 Windows 跳过，但必须有 Windows 原生核心流程与恢复测试；各 Agent 原生加载及真实付费 provider 调用若未实测，应在预览说明中明确标注。
 - [ ] npm 账号与命名空间权限已由维护者实际核对，认证材料只存在授权环境，不进入源码、包、命令日志或截图。
 - [ ] 发布者按授权范围手动发布 16 个技能数据包 → 目录 → CLI，全部显式指定 `--access public --tag next`；没有自动发布工作流。
 - [ ] 从公共 registry 回读全部 18 个包的精确版本和 dist-tag，下载 artifact 核对 SHA-512、逐文件清单及实际 CLI 安装行为后，再更新“已发布”状态。

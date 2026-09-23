@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmod, link, lstat, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { CatalogEntry, Context, SkillManifest } from '../types.js';
@@ -7,6 +7,7 @@ import { loadCatalog } from '../catalog/catalog.js';
 import { loadState } from '../store/state.js';
 import { validateHomeLocation } from '../agents/storage-boundary.js';
 import { ensurePrivateDirectory as ensurePrivateHome } from '../runtime/privacy.js';
+import { chmodTree } from '../store/local.js';
 import { ALLOWED_SCOPE, canonicalJson, LIMITS, validateCatalog, validateManifest, verifyTree } from '../validation.js';
 import { localArtifactPath, readRegularFile } from './files.js';
 import { fetchRegistryBytes, resolveNpmRelease } from './http.js';
@@ -15,10 +16,6 @@ export { assertIntegrity, extractVerifiedSkill, readTarball, verifySkillArchive 
 
 async function exists(filename: string): Promise<boolean> {
   try { await lstat(filename); return true; } catch (cause) { if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return false; throw cause; }
-}
-async function directoryModes(directory: string, mode: number): Promise<void> {
-  await chmod(directory, mode);
-  for (const item of await readdir(directory, { withFileTypes: true })) if (item.isDirectory()) await directoryModes(path.join(directory, item.name), mode);
 }
 async function checkStore(object: string, expected: SkillManifest): Promise<void> {
   const info = await lstat(object);
@@ -97,14 +94,14 @@ async function acquireVerifiedEntry(ctx: Context, entry: CatalogEntry): Promise<
     await extractVerifiedSkill(bytes, entry, path.join(staging, 'skill'));
     await writeFile(path.join(staging, 'manifest.json'), canonicalJson(verified.manifest) + '\n', { flag: 'wx', mode: 0o444 });
     await verifyTree(path.join(staging, 'skill'), verified.manifest);
-    await directoryModes(staging, 0o555);
+    await chmodTree(staging, true);
     try { await rename(staging, object); }
     catch (cause) {
       if (!['EEXIST', 'ENOTEMPTY'].includes((cause as NodeJS.ErrnoException).code ?? '')) throw cause;
       await checkStore(object, verified.manifest);
     }
   } finally {
-    if (await exists(staging)) { await directoryModes(staging, 0o700); await rm(staging, { recursive: true }); }
+    if (await exists(staging)) { await chmodTree(staging, false); await rm(staging, { recursive: true }); }
   }
   return { manifest: verified.manifest, directory: path.join(object, 'skill'), artifact };
 }

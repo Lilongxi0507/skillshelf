@@ -60,9 +60,22 @@ test('output directories are new/empty, non-checkout, and never follow links', a
   await assert.rejects(outputDirectory(path.join(sourceRoot, 'pack'), { sourceRoot }), /checkout/);
   const checkout = path.join(temporary, 'other-checkout'); await mkdir(checkout); await writeFile(path.join(checkout, '.git'), 'gitdir: elsewhere');
   await assert.rejects(outputDirectory(path.join(checkout, 'pack'), { sourceRoot }), /checkout/);
-  const linked = path.join(temporary, 'linked'); await symlink(out, linked, process.platform === 'win32' ? 'junction' : 'dir');
-  await assert.rejects(outputDirectory(path.join(linked, 'child'), { sourceRoot }), /links/);
   assert.equal(await readFile(path.join(out, 'keep'), 'utf8'), 'user data');
+});
+
+test('output directory validation rejects a native directory link ancestor', async t => {
+  const temporary = await scratch(t), sourceRoot = path.join(temporary, 'source'), out = path.join(temporary, 'packed');
+  await mkdir(sourceRoot); await mkdir(out);
+  const linked = path.join(temporary, 'linked');
+  try { await symlink(out, linked, process.platform === 'win32' ? 'junction' : 'dir'); }
+  catch (error) {
+    if (process.platform === 'win32' && ['EPERM', 'EACCES', 'ENOTSUP', 'EINVAL', 'UNKNOWN'].includes(error.code)) {
+      t.skip('Windows runner cannot create junctions; ordinary output path checks remain covered');
+      return;
+    }
+    throw error;
+  }
+  await assert.rejects(outputDirectory(path.join(linked, 'child'), { sourceRoot }), /links/);
 });
 
 test('preparation preserves identical files and refuses different files, links and dry-run data', async t => {

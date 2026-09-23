@@ -1,4 +1,4 @@
-import { cp, lstat, readlink, symlink, chmod, readdir } from 'node:fs/promises';
+import { cp, lstat, realpath, symlink, chmod, readdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import type { AgentTarget, Context, Projection, Release, State } from '../types.js';
 import { canonicalPath, exists, fingerprint, keyFor, within } from './fs.js';
@@ -15,8 +15,11 @@ export async function checkProjection(ctx: Context, projection: Projection, rele
   const info=await lstat(projection.path);
   if(projection.mode==='link'){
     if(!info.isSymbolicLink()) fail('CONFLICT','受管链接已被替换，未覆盖：'+projection.path);
-    const actual=resolve(dirname(projection.path),await readlink(projection.path));
-    if(actual!==resolve(storePath(ctx,release.contentDigest))) fail('CONFLICT','受管链接目标已改变：'+projection.path);
+    // Windows junctions may report a \\?\-prefixed link target. Compare the
+    // resolved target instead of the spelling returned by readlink.
+    const actual=await realpath(projection.path).catch(()=>fail('CONFLICT','受管链接目标不可用：'+projection.path));
+    const expected=await realpath(storePath(ctx,release.contentDigest));
+    if(process.platform==='win32'?actual.toLowerCase()!==expected.toLowerCase():actual!==expected) fail('CONFLICT','受管链接目标已改变：'+projection.path);
     await verifyTree(storePath(ctx,release.contentDigest),release.manifest);
   } else {
     if(!info.isDirectory()||info.isSymbolicLink()) fail('CONFLICT','受管副本类型已改变：'+projection.path);
@@ -25,7 +28,9 @@ export async function checkProjection(ctx: Context, projection: Projection, rele
 }
 async function makeWritable(path:string):Promise<void>{
   const s=await lstat(path); if(s.isSymbolicLink()) fail('INTEGRITY','副本中出现链接');
-  if(process.platform!=='win32') await chmod(path,s.isDirectory()?0o700:(s.mode&0o111?0o700:0o600));
+  if(process.platform==='win32'){
+    if(!s.isDirectory())await chmod(path,0o600);
+  }else await chmod(path,s.isDirectory()?0o700:(s.mode&0o111?0o700:0o600));
   if(s.isDirectory()) for(const name of await readdir(path)) await makeWritable(join(path,name));
 }
 export async function projectionChange(ctx: Context, state: State, next: State, path: string, release: Release | null, targets: AgentTarget[]): Promise<Change | null> {

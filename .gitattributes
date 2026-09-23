@@ -1,0 +1,3 @@
+# Skill snapshots and release manifests require the exact checked-in bytes on every OS.
+# Disable checkout/check-in line-ending conversion, including for third-party CSV/Markdown.
+* -text

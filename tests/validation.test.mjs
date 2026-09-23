@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chmod, link, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, link, lstat, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { canonicalJson, digestManifest, inventory, safeRelativePath, validateManifest, validateSkillDocument, verifyTree, LIMITS } from '../packages/cli/dist/validation.js';
@@ -8,7 +8,14 @@ import { canonicalJson, digestManifest, inventory, safeRelativePath, validateMan
 async function scratch(t) {
   const base = process.env.SKILLSHELF_TEST_TMP || os.tmpdir();
   const directory = await mkdtemp(path.join(base, 'run-skillshelf-validation-'));
-  t.after(() => rm(directory, { recursive: true, force: true })); return directory;
+  async function clearReadOnly(target) {
+    const info = await lstat(target);
+    if (info.isSymbolicLink()) return;
+    if (info.isDirectory()) for (const name of await readdir(target)) await clearReadOnly(path.join(target, name));
+    else await chmod(target, 0o600);
+  }
+  t.after(async () => { await clearReadOnly(directory); await rm(directory, { recursive: true, force: true }); });
+  return directory;
 }
 test('relative paths reject traversal, aliases, platform reserved and noncanonical names', () => {
   for (const value of ['', '/', '../a', 'a/../b', './a', 'a//b', 'a\\b', 'C:/a', 'CON.txt', 'nul', 'COM1', 'LPT².log', 'a.', 'a ', ' a', '.git/config', 'x\0y', 'a:*', 'a\u007fb', 'e\u0301.md', Array(17).fill('a').join('/')]) assert.throws(() => safeRelativePath(value), undefined, value);
@@ -41,9 +48,27 @@ test('inventory preserves hidden/binary files and executable normalization acros
   await chmod(path.join(root, 'run.sh'), 0o555); await verifyTree(root, manifest);
   await writeFile(path.join(root, 'extra.txt'), 'unexpected'); await assert.rejects(verifyTree(root, manifest));
 });
-test('tree inventory rejects symlink, hard link and case-colliding directories', async t => {
+test('tree inventory rejects native directory links', async t => {
   const root = await scratch(t); await writeFile(path.join(root, 'SKILL.md'), 'body');
-  const linked = path.join(root, 'link'); await symlink('SKILL.md', linked); await assert.rejects(inventory(root), /Links/); await rm(linked);
+  const linked = path.join(root, 'link');
+  if (process.platform === 'win32') {
+    const directory = path.join(root, 'target'); await mkdir(directory);
+    try { await symlink(directory, linked, 'junction'); }
+    catch (error) {
+      if (['EPERM', 'EACCES', 'ENOTSUP', 'EINVAL', 'UNKNOWN'].includes(error.code)) {
+        t.skip('Windows runner cannot create junctions; hard-link rejection remains covered');
+        return;
+      }
+      throw error;
+    }
+  } else {
+    await symlink('SKILL.md', linked);
+  }
+  await assert.rejects(inventory(root), /Links/); await rm(linked);
+});
+test('tree inventory rejects hard links and case-colliding directories', async t => {
+  const root = await scratch(t); await writeFile(path.join(root, 'SKILL.md'), 'body');
+  const linked = path.join(root, 'link');
   await link(path.join(root, 'SKILL.md'), linked); await assert.rejects(inventory(root), /Hard link/); await rm(linked);
   if (process.platform !== 'win32') { await mkdir(path.join(root, 'Data')); await mkdir(path.join(root, 'data')); await writeFile(path.join(root, 'Data/a'), 'a'); await writeFile(path.join(root, 'data/b'), 'b'); await assert.rejects(inventory(root), /Case-colliding/); }
 });

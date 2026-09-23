@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, lstat, realpath, readlink, symlink, chmod, unlink, rmdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, lstat, realpath, symlink, chmod, unlink, rmdir } from 'node:fs/promises';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
 import { emptyState, loadState } from '../packages/cli/dist/store/state.js';
 import { fingerprint } from '../packages/cli/dist/store/fs.js';
@@ -9,10 +9,8 @@ import { transact, recoverTransactions, pendingTransactions, targetWorkRoot, tar
 
 // Enable real process-crash tests with an existing private fixture directory in
 // SKILLSHELF_TEST_TMP. No fixture ever uses the real user's home.
-const supported = process.platform !== 'win32' && Boolean(process.env.SKILLSHELF_TEST_TMP);
-const skip = process.platform === 'win32'
-  ? 'Real SIGKILL/POSIX projection fixtures are not Windows validation'
-  : !process.env.SKILLSHELF_TEST_TMP ? 'Set SKILLSHELF_TEST_TMP to an existing isolated test directory' : false;
+const supported = Boolean(process.env.SKILLSHELF_TEST_TMP);
+const skip = supported ? false : 'Set SKILLSHELF_TEST_TMP to an existing isolated test directory';
 const moduleUrls = {
   transaction: new URL('../packages/cli/dist/transactions/transaction.js', import.meta.url).href,
   state: new URL('../packages/cli/dist/store/state.js', import.meta.url).href,
@@ -92,13 +90,16 @@ try {
     workRoot: targetWorkRoot(dirname(item.path)),
     expected: item.expected,
     prepare: stage => item.kind === 'link'
-      ? symlink(item.linkTarget, stage, 'dir')
+      ? symlink(item.linkTarget, stage, process.platform === 'win32' ? 'junction' : 'dir')
       : writeFile(stage, Buffer.from(item.next, 'base64'), { flag: 'wx', mode: 0o600 }),
   }));
   await transact({ home: input.home, offline: true }, emptyState(), emptyState(), changes, {
     afterStep: async (step, index) => {
       if (input.mode === 'kill' && step === input.step && (index === -1 || index === 0)) {
         await send({ type: 'killing', step, index });
+        // On Windows the parent force-terminates the child after this IPC
+        // barrier. This avoids treating a failed self-signal as a crash.
+        if (process.platform === 'win32') await new Promise(() => {});
         process.kill(process.pid, 'SIGKILL');
         throw new Error('SIGKILL unexpectedly returned');
       }
@@ -127,7 +128,10 @@ function startWorker(f, input) {
   const messages = [], listeners = new Set();
   child.stdout.on('data', chunk => { stdout = (stdout + chunk).slice(-MAX_CAPTURE); });
   child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-MAX_CAPTURE); });
-  child.on('message', message => { messages.push(message); for (const listener of listeners) listener(message); });
+  child.on('message', message => {
+    messages.push(message); for (const listener of listeners) listener(message);
+    if (process.platform === 'win32' && message?.type === 'killing') child.kill('SIGKILL');
+  });
   child.on('error', error => { spawnError = error; });
   const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, CHILD_TIMEOUT_MS);
   const done = new Promise(resolveDone => child.once('close', (code, signal) => {
@@ -176,8 +180,12 @@ function childItems(items) { return items.map(({ old, nextBytes, ...item }) => i
 function assertExit(result, expectedSignal = null) {
   assert.equal(result.spawnError, undefined, result.stderr);
   assert.equal(result.timedOut, false, `child exceeded deadline: ${result.stderr}`);
-  assert.equal(result.signal, expectedSignal, result.stderr);
-  assert.equal(result.code, expectedSignal ? null : 0, result.stderr);
+  if (process.platform === 'win32' && expectedSignal === 'SIGKILL') {
+    assert.ok(result.signal === 'SIGKILL' || result.code !== 0, `worker was not terminated: ${result.stderr}`);
+  } else {
+    assert.equal(result.signal, expectedSignal, result.stderr);
+    assert.equal(result.code, expectedSignal ? null : 0, result.stderr);
+  }
 }
 
 for (const step of ['prepared', 'backed-up', 'switched', 'state-committed']) {
@@ -267,16 +275,24 @@ test('SIGKILL recovery unlinks only the projection and preserves both linked con
     await writeFile(join(directory, 'references', 'asset.bin'), fileBytes('untouched', index));
   }
   const path = join(f.root, 'agent', 'skills', 'fixture-skill');
-  await mkdir(dirname(path), { recursive: true }); await symlink(oldTree, path, 'dir');
+  await mkdir(dirname(path), { recursive: true });
+  try { await symlink(oldTree, path, process.platform === 'win32' ? 'junction' : 'dir'); }
+  catch (error) {
+    if (process.platform === 'win32' && ['EPERM', 'EACCES', 'ENOTSUP', 'EINVAL', 'UNKNOWN'].includes(error.code)) {
+      t.skip('Windows runner cannot create junctions; file-tree crash recovery remains covered');
+      return;
+    }
+    throw error;
+  }
   const oldHash = await fingerprint(oldTree), newHash = await fingerprint(newTree), linkHash = await fingerprint(path);
   const worker = startWorker(f, { mode: 'kill', step: 'switched', home: f.ctx.home,
     items: [{ path, expected: linkHash, kind: 'link', linkTarget: newTree }] });
   assertExit(await worker.done, 'SIGKILL');
-  assert.equal(await readlink(path), newTree);
+  assert.equal(await realpath(path), await realpath(newTree));
   const journal = await journalFor(f.ctx);
   assert.deepEqual(await recoverTransactions(f.ctx), { recovered: [journal.id] });
   assert.equal((await lstat(path)).isSymbolicLink(), true);
-  assert.equal(await readlink(path), oldTree);
+  assert.equal(await realpath(path), await realpath(oldTree));
   assert.equal(await fingerprint(oldTree), oldHash, 'old tree is never removed through its projection');
   assert.equal(await fingerprint(newTree), newHash, 'new tree is never removed through its projection');
   assert.deepEqual(await loadState(f.ctx), emptyState());

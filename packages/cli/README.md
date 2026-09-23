@@ -4,7 +4,7 @@
 
 按需下载精选技能的完整文件，持久保存在本机，通过受管链接或完整副本接入 Agent 技能目录。CLI 只携带元数据，不捆绑全部技能；清理 npm/npx 缓存不会移走已安装内容。
 
-> 本文随 `0.1.0-preview.1` 发布候选准备。编写时尚未公开发布；以下安装命令仅在维护者完成 npm 发布后可用。预览通道为 `next`，不代表稳定版或跨平台实机验收完成。
+> `0.1.0-preview.1` 使用 `next` 预览通道，不代表稳定版。安装可用性以 npm 公共注册表为准；各平台的实测结果与限制见[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)。
 
 源码与完整指南：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
@@ -60,6 +60,6 @@ skillshelf self-update --check         # 检查 CLI，实际升级由 npm 完成
 
 安装验证 tarball SHA-512 及逐文件清单，拒绝包内链接，不运行内容包生命周期。**校验不等于作者认证或沙箱**；Agent 执行技能仍使用用户授予的权限。未知文件、本地修改与改向链接不会自动覆盖；多目录恢复不是跨盘原子事务。
 
-项目的测试 CI 配置覆盖 Linux、Node.js 22/24。macOS、Windows 的真实 ACL、链接/copy 以及各 Agent 原生加载仍需实机验证；本说明不声称这些平台已验收通过。
+Linux、macOS、Windows 的测试范围、实际运行结果和跳过项见[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)。各 Agent 的原生加载与目录操作验收分开记录；目录接入不等于 Agent 已发现技能。
 
 第一方代码使用 MIT，第三方原始 LICENSE、NOTICE 与版权声明保留。详情见[完整文档](https://github.com/Lilongxi0507/skillshelf#readme)、[安全边界](https://github.com/Lilongxi0507/skillshelf/blob/main/docs/security.md)和[来源记录](https://github.com/Lilongxi0507/skillshelf/blob/main/catalog/PROVENANCE.md)。

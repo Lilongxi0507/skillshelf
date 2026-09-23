@@ -9,7 +9,11 @@ import { fail } from '../errors.js';
 
 export async function chmodTree(root:string,readonly:boolean):Promise<void>{
   const s=await lstat(root);if(s.isSymbolicLink())fail('INTEGRITY','不允许处理内容树中的链接');
-  if(process.platform!=='win32')await chmod(root,s.isDirectory()?(readonly?0o555:0o700):(s.mode&0o111?(readonly?0o555:0o700):(readonly?0o444:0o600)));
+  if(process.platform==='win32'){
+    // NTFS exposes the read-only file attribute through chmod's write bit.
+    // Clear it before removing a staged or test tree, without changing ACLs.
+    if(!s.isDirectory())await chmod(root,readonly?0o444:0o600);
+  }else await chmod(root,s.isDirectory()?(readonly?0o555:0o700):(s.mode&0o111?(readonly?0o555:0o700):(readonly?0o444:0o600)));
   if(s.isDirectory())for(const name of await readdir(root))await chmodTree(join(root,name),readonly);
 }
 export async function importTree(ctx:Context,source:string,input:SkillManifest):Promise<string>{

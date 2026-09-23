@@ -28,7 +28,8 @@ function fixture(mutate = files => files, metadata = {}) {
 }
 function catalogFor(entry) { return { schemaVersion: 1, catalogVersion: '0.1.0-preview.1', minCliVersion: '0.1.0-preview.1', scope: '@llx17669475', categories: [{ id: 'design', title: 'Design' }], collections: [{ id: 'fixture', title: 'Fixture', description: 'Complete test fixture', skills: ['fixture'] }], skills: [entry] }; }
 async function makeWritable(directory) {
-  const info = await lstat(directory); if (!info.isDirectory() || info.isSymbolicLink()) return;
+  const info = await lstat(directory); if (info.isSymbolicLink()) return;
+  if (!info.isDirectory()) { await chmod(directory, 0o600); return; }
   await chmod(directory, 0o700);
   for (const file of await readdir(directory)) await makeWritable(path.join(directory, file));
 }

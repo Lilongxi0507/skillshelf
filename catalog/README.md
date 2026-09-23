@@ -2,15 +2,15 @@
 
 ## 发布状态
 
-本目录属于 `0.1.0-preview.1` 发布候选，**本文编写时仍在准备，尚未公开发布**。授权 npm 命名空间为 `@llx17669475`，公开源码目标为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。预览通道是 `next`，不是稳定版 `latest`；后续发布状态以项目 README 与实际发布记录为准。
+本目录对应 `0.1.0-preview.1`，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。预览通道是 `next`，不是稳定版 `latest`；可安装性以 npm 公共注册表和[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)为准。
 
-首发计划共 18 个包：
+首批内容由 18 个包组成：
 
 - CLI：`@llx17669475/skillshelf`。
 - 元数据目录：`@llx17669475/skillshelf-catalog`。
 - 16 个完整技能包：`@llx17669475/skillshelf-skill-<技能ID>`。
 
-准备完成或生成摘要不等于 npm 包可下载；发布后还需要回读实际版本、标签与 artifact。
+本地生成的摘要不代表 npm 包可下载；使用前应核对公共注册表中的确切版本、标签与 artifact。
 
 ## 仓库内容
 
