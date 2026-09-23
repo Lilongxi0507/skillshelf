@@ -70,5 +70,16 @@ test('tree inventory rejects hard links and case-colliding directories', async t
   const root = await scratch(t); await writeFile(path.join(root, 'SKILL.md'), 'body');
   const linked = path.join(root, 'link');
   await link(path.join(root, 'SKILL.md'), linked); await assert.rejects(inventory(root), /Hard link/); await rm(linked);
-  if (process.platform !== 'win32') { await mkdir(path.join(root, 'Data')); await mkdir(path.join(root, 'data')); await writeFile(path.join(root, 'Data/a'), 'a'); await writeFile(path.join(root, 'data/b'), 'b'); await assert.rejects(inventory(root), /Case-colliding/); }
+  if (process.platform !== 'win32') {
+    await mkdir(path.join(root, 'Data'));
+    try { await mkdir(path.join(root, 'data')); }
+    catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      t.diagnostic('Filesystem is case-insensitive; two case-colliding directories cannot be created');
+      return;
+    }
+    await writeFile(path.join(root, 'Data/a'), 'a');
+    await writeFile(path.join(root, 'data/b'), 'b');
+    await assert.rejects(inventory(root), /Case-colliding/);
+  }
 });

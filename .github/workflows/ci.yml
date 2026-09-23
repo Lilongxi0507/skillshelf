@@ -39,7 +39,7 @@ jobs:
             import { appendFileSync, mkdtempSync, realpathSync } from "node:fs";
             import { tmpdir } from "node:os";
             import { join } from "node:path";
-            const work = realpathSync(mkdtempSync(join(tmpdir(), "skillshelf-ci-")));
+            const work = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-ci-")));
             appendFileSync(process.env.GITHUB_ENV, `SKILLSHELF_CI_TMP=${work}\nSKILLSHELF_TEST_CATALOG=${join(work, "packages", "catalog.development.json")}\nNPM_CONFIG_CACHE=${join(work, "npm-cache")}\n`);
             appendFileSync(process.env.GITHUB_OUTPUT, `work=${work}\n`);
           '
@@ -116,7 +116,7 @@ jobs:
             import { appendFileSync, mkdirSync, mkdtempSync, realpathSync } from "node:fs";
             import { tmpdir } from "node:os";
             import { join } from "node:path";
-            const work = realpathSync(mkdtempSync(join(tmpdir(), "skillshelf-ci-")));
+            const work = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-ci-")));
             const tests = join(work, "tests");
             mkdirSync(tests, { mode: 0o700 });
             const python = join(process.env.pythonLocation, process.platform === "win32" ? "python.exe" : "bin/python3");
