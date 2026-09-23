@@ -33,11 +33,10 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $work = Join-Path $env:RUNNER_TEMP ('skillshelf-public-' + [guid]::NewGuid().ToString('N'))
-          New-Item -ItemType Directory -Path $work | Out-Null
+          $work = (& node --input-type=module -e 'import { mkdirSync, mkdtempSync, realpathSync } from "node:fs"; import { tmpdir } from "node:os"; import { join } from "node:path"; const root = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-public-"))); mkdirSync(join(root, "tests"), { mode: 0o700 }); console.log(root);').Trim()
           $prefix = Join-Path $work 'prefix'
-          $homePath = Join-Path $work 'home'
-          $agentPath = Join-Path $work 'agent-skills'
+          $homePath = Join-Path $work 'tests/home'
+          $agentPath = Join-Path $work 'tests/agent-skills'
           $env:NPM_CONFIG_CACHE = Join-Path $work 'npm-cache'
           $env:NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org/'
           $npm = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
