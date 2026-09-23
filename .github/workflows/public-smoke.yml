@@ -1,0 +1,73 @@
+name: Public npm smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: Exact version expected from the next tag
+        required: true
+        default: 0.1.0-preview.1
+
+permissions:
+  contents: read
+
+jobs:
+  public-install:
+    name: ${{ matrix.os }} / Node.js ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['22', '24']
+    env:
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install from public npm and exercise the native CLI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $work = Join-Path $env:RUNNER_TEMP ('skillshelf-public-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $work | Out-Null
+          $prefix = Join-Path $work 'prefix'
+          $homePath = Join-Path $work 'home'
+          $agentPath = Join-Path $work 'agent-skills'
+          $env:NPM_CONFIG_CACHE = Join-Path $work 'npm-cache'
+          $env:NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org/'
+          $npm = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
+          & $npm install --global '@llx17669475/skillshelf@next' --prefix $prefix --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
+          if ($LASTEXITCODE -ne 0) { throw 'Public npm CLI installation failed' }
+
+          $bin = if ($IsWindows) { Join-Path $prefix 'skillshelf.cmd' } else { Join-Path $prefix 'bin/skillshelf' }
+          if (-not (Test-Path -LiteralPath $bin -PathType Leaf)) { throw 'Native CLI entrypoint is missing' }
+          $version = (& $bin --version | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -ne $env:EXPECTED_VERSION) { throw "Unexpected CLI version: $version" }
+
+          function Invoke-SkillShelf([string[]] $cliArgs) {
+            $output = & $script:bin @cliArgs
+            if ($LASTEXITCODE -ne 0) { throw "SkillShelf command failed: $($cliArgs -join ' ')" }
+            $result = $output | ConvertFrom-Json
+            if ($result.status -ne 'ok') { throw "SkillShelf returned a non-ok status: $($cliArgs -join ' ')" }
+            return $result.data
+          }
+
+          $options = @('--home', $homePath, '--json')
+          Invoke-SkillShelf ($options + @('catalog', 'refresh', '--yes')) | Out-Null
+          $catalog = Invoke-SkillShelf ($options + @('list'))
+          if (@($catalog.skills).Count -ne 16) { throw 'Public catalog does not contain 16 skills' }
+
+          Invoke-SkillShelf ($options + @('install', 'design-taste-frontend', '--yes')) | Out-Null
+          $agent = Invoke-SkillShelf ($options + @('agents', 'add', 'custom', '--path', $agentPath, '--mode', 'copy', '--yes'))
+          if (-not $agent.target.id) { throw 'Custom Agent target was not registered' }
+          Invoke-SkillShelf ($options + @('enable', 'design-taste-frontend', '--agent', $agent.target.id, '--yes')) | Out-Null
+          $verification = Invoke-SkillShelf ($options + @('verify'))
+          if (-not $verification.ok) { throw 'Installed skill verification failed' }
+          if (-not (Test-Path -LiteralPath (Join-Path $agentPath 'design-taste-frontend/SKILL.md') -PathType Leaf)) { throw 'Managed Agent copy is missing SKILL.md' }
+
+          Write-Host "Public npm $version passed on $([Environment]::OSVersion.Platform), Node.js $(node --version)"

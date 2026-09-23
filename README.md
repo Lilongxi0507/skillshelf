@@ -4,9 +4,9 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **发布准备中，尚未上架。** 首个公开预览版计划为 `0.1.0-preview.1`，npm 命名空间为 `@llx17669475`，发布通道为 `next`。[2026-09-23 的原生跨平台 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)已在 Linux、macOS、Windows 的 Node.js 22/24 作业通过；这不等于 npm 已发布。下文的 npm 安装命令在完成发布和公共 registry 回读后才可用。
+> **公开预览版已上架。** `0.1.0-preview.1` 的 16 个技能包、目录包和 CLI 共 18 个包已发布到 npm；确切版本、`next` 标签和公共下载包的 SHA-512 均已核对。[冻结源码 `f5fe8f4` 的原生跨平台 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35820368322)在 Linux、macOS、Windows 的 Node.js 22/24 作业通过；公开 npm 包的独立安装与核心流程已在 Linux 验证，macOS/Windows 的公开安装验证仍待执行。详情见[公开验证记录](PUBLIC-VERIFICATION.md)。
 >
-> 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。源码公开不代表 npm 包已经发布。
+> 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
 ## 为什么使用 SkillShelf
 
@@ -19,7 +19,7 @@ SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文
 
 需要 **Node.js >=22.20.0**；建议使用 Node.js 22 或 24 的最新补丁版。日常管理和指令型技能不需要 Python；第一方搜索/媒体工具的 `run` 需要 **Python >=3.10**。执行其他技能附带的脚本时，仍需遵守该技能自己的依赖说明。SkillShelf 不自动安装解释器或技能依赖。
 
-**公开预览版发布完成后：**
+安装公开预览版：
 
 ```bash
 npm install -g @llx17669475/skillshelf@next
@@ -42,7 +42,7 @@ skillshelf files ui-ux-pro-max
 skillshelf read ui-ux-pro-max --path SKILL.md --raw
 ```
 
-尚未发布时，可按[贡献指南](CONTRIBUTING.md)从源码准备本地包；不要把安装失败解释成应放宽来源校验。
+如需从源码构建或核对发布包，可按[贡献指南](CONTRIBUTING.md)操作；不要把安装失败解释成应放宽来源校验。
 
 ## 首批 16 项技能
 
@@ -78,7 +78,7 @@ skillshelf disable ui-ux-pro-max --agent codex --yes
 
 可通过 `SKILLSHELF_HOME` 或 `--home` 指定独立目录。数据 home 与 Agent 扫描根不能互相包含。受管内容不应直接编辑；使用 `fork` 创建独立可编辑副本。
 
-**平台验证范围：** 同一组发布候选包已在 Linux、macOS、Windows 的 Node.js 22/24 原生 CI 上完成安装与核心流程验证；Windows 还验证了实际打包 CLI 的 `.cmd` 入口、私有 ACL 与中断恢复。各系统的跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
+**平台验证范围：** 同一组发布候选包已在 Linux、macOS、Windows 的 Node.js 22/24 原生 CI 上完成安装与核心流程验证；Windows 还验证了实际打包 CLI 的 `.cmd` 入口、私有 ACL 与中断恢复。另已在 Linux 从公共 npm 安装并验证目录刷新、16 项列表、按需安装、受管副本和 `verify`；macOS/Windows 的公共 npm 安装仍待验证。各系统的跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
 
 ## 更新、固定版本与回滚
 
@@ -96,7 +96,7 @@ skillshelf remove ui-ux-pro-max --yes   # 移除当前范围选择，保留下�
 skillshelf self-update --check         # 检查 CLI，不自行覆盖 npm 管理的程序
 ```
 
-此预览版使用 `next` 通道，而不是稳定版 `latest`。目录检查/刷新与 CLI 更新检查跟随预览通道；技能本身仍按目录或项目锁的确切版本与摘要获取。发布前远端检查可能因包或标签尚不存在而失败，不代表有可用更新。CLI 升级由 npm 完成：`npm install -g @llx17669475/skillshelf@next`。
+此预览版的安装说明与程序更新检查使用 `next` 通道；npm 首次发布时还自动创建了指向该预览版的 `latest` 标签，它不表示已有稳定版。请显式使用 `@next` 或确切版本。目录检查/刷新跟随预览通道；技能本身仍按目录或项目锁的确切版本与摘要获取。CLI 升级由 npm 完成：`npm install -g @llx17669475/skillshelf@next`。
 
 ### 从旧占位预览迁移
 
@@ -171,4 +171,4 @@ skillshelf gc --yes                    # 保留已记录历史与备份
 - [公开验证记录](PUBLIC-VERIFICATION.md)：实际执行的检查、平台与仍未验证的限制。
 - [目录说明](catalog/README.md)：来源、内容包、校验和离线目录。
 
-本工程无需其他仓库的源码、服务配置或业务数据即可使用已收录的技能快照。没有自动发布工作流；测试 CI 不持有发布凭据，也不发布 npm 包。
+本工程无需其他仓库的源码、服务配置或业务数据即可使用已收录的技能快照。测试 CI 不持有发布凭据，也不发布 npm 包；仓库另备有手动触发的 Trusted Publishing 工作流，须在 npm 为各包完成绑定并实测后才能用于后续版本。

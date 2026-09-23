@@ -1,0 +1,353 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact preview version from the reviewed source
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skillshelf-npm-publish
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Build and audit the exact release bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EXPECTED_VERSION: ${{ inputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Restrict publication to the reviewed repository and main branch
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'Lilongxi0507/skillshelf'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          [[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]
+
+      - name: Check out standalone source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Check requested source version
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const cli = JSON.parse(readFileSync("packages/cli/package.json", "utf8"));
+            const source = JSON.parse(readFileSync("catalog/sources.json", "utf8"));
+            if (cli.version !== process.env.EXPECTED_VERSION || source.version !== process.env.EXPECTED_VERSION) throw new Error("Requested version differs from source");
+          '
+
+      - name: Create private build output
+        id: temp
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import { appendFileSync, mkdtempSync, realpathSync } from "node:fs";
+            import { tmpdir } from "node:os";
+            import { join } from "node:path";
+            const work = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-publish-")));
+            appendFileSync(process.env.GITHUB_ENV, `SKILLSHELF_CI_TMP=${work}\nNPM_CONFIG_CACHE=${join(work, "npm-cache")}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `work=${work}\n`);
+          '
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+
+      - name: Build and validate source metadata
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run validate
+
+      - name: Pack and verify skills and catalog
+        run: |
+          set -euo pipefail
+          node scripts/pack-skills.mjs --output "$SKILLSHELF_CI_TMP/packages" --write-bootstrap
+          git diff --exit-code -- catalog/bootstrap.json
+          node scripts/copy-catalog.mjs
+          npm run validate
+          node scripts/validate-catalog.mjs --catalog "$SKILLSHELF_CI_TMP/packages/catalog.development.json" --development
+
+      - name: Pack and audit all 18 archives
+        run: |
+          set -euo pipefail
+          artifact="$(npm pack --workspace packages/cli --ignore-scripts --pack-destination "$SKILLSHELF_CI_TMP/packages" --silent)"
+          [[ "$artifact" = *.tgz && "$artifact" != */* ]]
+          node scripts/audit-cli-package.mjs "$SKILLSHELF_CI_TMP/packages/$artifact"
+          node scripts/prepare-release.mjs --output "$SKILLSHELF_CI_TMP/packages" --cli-tarball "$SKILLSHELF_CI_TMP/packages/$artifact"
+
+      - name: Share the exact bundle with native test jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: skillshelf-publish-bundle
+          path: ${{ steps.temp.outputs.work }}/packages/
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    name: ${{ matrix.os }} / Node.js ${{ matrix.node }}
+    needs: package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['22', '24']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out standalone source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Set up Python for local runtime tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create private test directories
+        id: temp
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import { appendFileSync, mkdirSync, mkdtempSync, realpathSync } from "node:fs";
+            import { tmpdir } from "node:os";
+            import { join } from "node:path";
+            const work = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-publish-")));
+            const tests = join(work, "tests");
+            mkdirSync(tests, { mode: 0o700 });
+            const python = join(process.env.pythonLocation, process.platform === "win32" ? "python.exe" : "bin/python3");
+            const values = {
+              SKILLSHELF_CI_TMP: work,
+              SKILLSHELF_TEST_TMP: tests,
+              SKILLSHELF_TEST_CATALOG: join(work, "packages", "catalog.development.json"),
+              SKILLSHELF_PYTHON: python,
+              NPM_CONFIG_CACHE: join(work, "npm-cache")
+            };
+            appendFileSync(process.env.GITHUB_ENV, Object.entries(values).map(([key, value]) => `${key}=${value}`).join("\n") + "\n");
+            appendFileSync(process.env.GITHUB_OUTPUT, `work=${work}\n`);
+          '
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+
+      - name: Build and validate source metadata
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run validate
+
+      - name: Download the audited archives
+        uses: actions/download-artifact@v4
+        with:
+          name: skillshelf-publish-bundle
+          path: ${{ steps.temp.outputs.work }}/packages
+
+      - name: Recheck the same archives and plan
+        run: |
+          set -euo pipefail
+          artifact="$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const plan=JSON.parse(readFileSync(process.env.SKILLSHELF_CI_TMP+"/packages/publication-plan.json","utf8")); process.stdout.write(plan.packages.at(-1).file);')"
+          node scripts/validate-catalog.mjs --catalog "$SKILLSHELF_TEST_CATALOG" --development
+          node scripts/audit-cli-package.mjs "$SKILLSHELF_CI_TMP/packages/$artifact"
+          node scripts/prepare-release.mjs --output "$SKILLSHELF_CI_TMP/packages" --cli-tarball "$SKILLSHELF_CI_TMP/packages/$artifact"
+          printf 'SKILLSHELF_TEST_CLI_ARCHIVE=%s\n' "$SKILLSHELF_CI_TMP/packages/$artifact" >> "$GITHUB_ENV"
+
+      - name: Run full Node tests and native lifecycle checks
+        run: npm test
+
+      - name: Run POSIX terminal smoke tests
+        if: runner.os != 'Windows'
+        run: |
+          python3 tests/terminal-smoke.py \
+            --cli packages/cli/dist/index.js \
+            --catalog "$SKILLSHELF_TEST_CATALOG" \
+            --tmp "$SKILLSHELF_TEST_TMP"
+
+  publish:
+    name: Publish checked archives using npm Trusted Publishing
+    needs: [package, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      EXPECTED_VERSION: ${{ inputs.version }}
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out standalone source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Use an OIDC-capable npm CLI
+        run: |
+          set -euo pipefail
+          npm install --global npm@11.5.1 --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+          test "$(npm --version)" = '11.5.1'
+
+      - name: Create private verification output
+        id: temp
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import { appendFileSync, mkdtempSync, realpathSync } from "node:fs";
+            import { tmpdir } from "node:os";
+            import { join } from "node:path";
+            const work = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-publish-")));
+            appendFileSync(process.env.GITHUB_ENV, `SKILLSHELF_CI_TMP=${work}\nNPM_CONFIG_CACHE=${join(work, "npm-cache")}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `work=${work}\n`);
+          '
+
+      - name: Install locked dependencies and build source validators
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm run build
+          npm run validate
+
+      - name: Download the audited archives
+        uses: actions/download-artifact@v4
+        with:
+          name: skillshelf-publish-bundle
+          path: ${{ steps.temp.outputs.work }}/packages
+
+      - name: Recheck downloaded release bundle
+        run: |
+          set -euo pipefail
+          artifact="$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const plan=JSON.parse(readFileSync(process.env.SKILLSHELF_CI_TMP+"/packages/publication-plan.json","utf8")); process.stdout.write(plan.packages.at(-1).file);')"
+          node scripts/audit-cli-package.mjs "$SKILLSHELF_CI_TMP/packages/$artifact"
+          node scripts/prepare-release.mjs --output "$SKILLSHELF_CI_TMP/packages" --cli-tarball "$SKILLSHELF_CI_TMP/packages/$artifact"
+
+      - name: Check every version, publish missing packages in order, and verify public bytes
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { lstatSync, readFileSync } from 'node:fs';
+          import { resolve, sep } from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const bundle = resolve(process.env.SKILLSHELF_CI_TMP, 'packages');
+          const plan = JSON.parse(readFileSync(resolve(bundle, 'publication-plan.json'), 'utf8'));
+          const version = process.env.EXPECTED_VERSION;
+          const registry = 'https://registry.npmjs.org';
+          const sleep = milliseconds => new Promise(done => setTimeout(done, milliseconds));
+          const integrity = bytes => 'sha512-' + createHash('sha512').update(bytes).digest('base64');
+          const metadataUrl = (name, selector) => `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(selector)}`;
+
+          if (!/^\d+\.\d+\.\d+-preview\.\d+$/.test(version) ||
+              plan.schemaVersion !== 1 || plan.complete !== true || plan.published !== false ||
+              plan.scope !== '@llx17669475' || plan.version !== version || plan.tag !== 'next' ||
+              plan.access !== 'public' || plan.repository !== 'https://github.com/Lilongxi0507/skillshelf.git' ||
+              plan.packages?.length !== 18) throw new Error('Unexpected publication plan');
+
+          const names = new Set();
+          for (const [index, row] of plan.packages.entries()) {
+            const expectedName = index < 16 ? /^@llx17669475\/skillshelf-skill-[a-z0-9]+(?:-[a-z0-9]+)*$/ :
+              index === 16 ? /^@llx17669475\/skillshelf-catalog$/ : /^@llx17669475\/skillshelf$/;
+            if (!expectedName.test(row.name) || names.has(row.name) || row.version !== version ||
+                row.tag !== 'next' || row.access !== 'public' || row.repository !== plan.repository ||
+                !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(row.integrity) ||
+                typeof row.file !== 'string' || !/^(?:artifacts\/)?[a-z0-9-]+\.tgz$/.test(row.file)) {
+              throw new Error(`Invalid publication row ${index + 1}`);
+            }
+            names.add(row.name);
+            const filename = resolve(bundle, row.file);
+            if (!filename.startsWith(bundle + sep) || !lstatSync(filename).isFile() ||
+                integrity(readFileSync(filename)) !== row.integrity) throw new Error(`Local archive mismatch: ${row.name}`);
+          }
+
+          async function getJson(url) {
+            const response = await fetch(url, { headers: { accept: 'application/json' }, redirect: 'error', cache: 'no-store' });
+            if (response.status === 404) return null;
+            if (!response.ok) throw new Error(`Registry metadata request failed: HTTP ${response.status}`);
+            return response.json();
+          }
+
+          async function publicVersion(row) {
+            const metadata = await getJson(metadataUrl(row.name, row.version));
+            if (!metadata) return false;
+            if (metadata.name !== row.name || metadata.version !== row.version ||
+                metadata.dist?.integrity !== row.integrity) throw new Error(`Registry version conflicts with plan: ${row.name}`);
+            const url = new URL(metadata.dist.tarball);
+            if (url.origin !== registry || url.username || url.password) throw new Error(`Unexpected tarball URL: ${row.name}`);
+            const response = await fetch(url, { redirect: 'error', cache: 'no-store' });
+            if (!response.ok || integrity(Buffer.from(await response.arrayBuffer())) !== row.integrity) {
+              throw new Error(`Registry tarball mismatch: ${row.name}`);
+            }
+            return true;
+          }
+
+          async function verifyPublished(row) {
+            for (let attempt = 0; attempt < 12; attempt++) {
+              if (await publicVersion(row)) {
+                const next = await getJson(metadataUrl(row.name, 'next'));
+                if (next?.version === row.version) return;
+              }
+              if (attempt < 11) await sleep(5000);
+            }
+            throw new Error(`Public version or next tag did not appear: ${row.name}`);
+          }
+
+          const present = [];
+          for (const row of plan.packages) {
+            const found = await publicVersion(row);
+            if (found) {
+              const next = await getJson(metadataUrl(row.name, 'next'));
+              if (next?.version !== row.version) throw new Error(`Existing next tag differs from plan: ${row.name}`);
+            }
+            present.push(found);
+          }
+          console.log(`Preflight: ${present.filter(Boolean).length} matching versions, ${present.filter(found => !found).length} missing versions`);
+
+          for (const [index, row] of plan.packages.entries()) {
+            if (!present[index]) {
+              const result = spawnSync('npm', ['publish', resolve(bundle, row.file), '--ignore-scripts', '--access', 'public', '--tag', 'next'], { stdio: 'inherit' });
+              if (result.error || result.status !== 0) throw new Error(`npm publish failed: ${row.name}`);
+            }
+            await verifyPublished(row);
+            console.log(`Verified ${index + 1}/${plan.packages.length}: ${row.name}@${row.version}`);
+          }
+          NODE
+
+      - name: Install the public CLI and invoke its real bin
+        run: |
+          set -euo pipefail
+          prefix="$SKILLSHELF_CI_TMP/public-prefix"
+          npm install --global '@llx17669475/skillshelf@next' --prefix "$prefix" --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+          test -f "$prefix/bin/skillshelf"
+          test "$("$prefix/bin/skillshelf" --version)" = "$EXPECTED_VERSION"
