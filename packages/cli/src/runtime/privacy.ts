@@ -134,20 +134,20 @@ export function parseWindowsAclRecord(stdout: string): WindowsAclRecord | null {
 /** Paths and expected kind are controlled environment values, never PowerShell source. */
 export const WINDOWS_ACL_INSPECTION_SCRIPT = [
   "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.Encoding]::ASCII; $culture=[System.Globalization.CultureInfo]::InvariantCulture;",
-  '$p=$env:SKILLSHELF_ACL_PATH; $k=$env:SKILLSHELF_ACL_KIND;',
+  '$p=$env:SKILLSHELF_ACL_PATH; $k=$env:SKILLSHELF_ACL_KIND; $requestedOwner=$env:SKILLSHELF_ACL_OWNER;',
   "if ($k -eq 'D') { $a=[System.IO.Directory]::GetAccessControl($p) } elseif ($k -eq 'F') { $a=[System.IO.File]::GetAccessControl($p) } else { exit 2 };",
-  '$s=[System.Security.Principal.SecurityIdentifier]; $owner=$a.GetOwner($s).Value; $rules=$a.GetAccessRules($true,$true,$s);',
+  '$s=[System.Security.Principal.SecurityIdentifier]; if ($requestedOwner) { $requested=[System.Security.Principal.SecurityIdentifier]::new($requestedOwner); if ($a.GetOwner($s).Value -ne $requestedOwner) { $a.SetOwner($requested); if ($k -eq "D") { [System.IO.Directory]::SetAccessControl($p,$a) } else { [System.IO.File]::SetAccessControl($p,$a) }; $a=if ($k -eq "D") { [System.IO.Directory]::GetAccessControl($p) } else { [System.IO.File]::GetAccessControl($p) } } }; $owner=$a.GetOwner($s).Value; $rules=$a.GetAccessRules($true,$true,$s);',
   "[Console]::WriteLine('SSACL1'); [Console]::WriteLine('O' + [char]9 + $owner);",
   "[Console]::WriteLine('P' + [char]9 + ([int]$a.AreAccessRulesProtected).ToString($culture)); [Console]::WriteLine('N' + [char]9 + ([int]$rules.Count).ToString($culture));",
   "foreach ($rule in $rules) { [Console]::WriteLine('A' + [char]9 + $rule.IdentityReference.Value + [char]9 + ([int]$rule.AccessControlType).ToString($culture) + [char]9 + ([int]$rule.FileSystemRights).ToString($culture) + [char]9 + ([int]$rule.IsInherited).ToString($culture)) };",
   "[Console]::WriteLine('END');",
 ].join(' ');
 
-async function checkWindowsAcl(target: string, directory: boolean): Promise<void> {
+async function checkWindowsAcl(target: string, directory: boolean, ownerSid?: string): Promise<void> {
   const tools = windowsTools();
   const sid = await windowsSid();
   // Paths travel through an environment variable, not interpolated PowerShell source; no tokens in argv.
-  const result = await localCommand(tools.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_ACL_INSPECTION_SCRIPT], { ...tools.env, SKILLSHELF_ACL_PATH: target, SKILLSHELF_ACL_KIND: directory ? 'D' : 'F' });
+  const result = await localCommand(tools.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_ACL_INSPECTION_SCRIPT], { ...tools.env, SKILLSHELF_ACL_PATH: target, SKILLSHELF_ACL_KIND: directory ? 'D' : 'F', SKILLSHELF_ACL_OWNER: ownerSid ?? '' });
   if (result.timedOut) permission('Windows ACL inspection timed out; secret storage refused');
   if (result.code !== 0 || result.stderr.length !== 0) permission('Cannot inspect Windows ACLs; secret storage refused');
   const acl = parseWindowsAclRecord(result.stdout);
@@ -165,10 +165,7 @@ async function restrictNewWindowsPath(target: string, directory: boolean): Promi
   const result = await localCommand(tools.icacls, [target, '/inheritance:r', '/grant:r', `*${sid}:${access}`, '*S-1-5-18:' + access, '*S-1-5-32-544:' + access, '/q'], tools.env);
   if (result.timedOut) permission('Windows ACL setup timed out; secret storage refused');
   if (result.code !== 0) permission('Cannot establish private Windows ACLs; secret storage refused');
-  const owner = await localCommand(tools.icacls, [target, '/setowner', `*${sid}`, '/q'], tools.env);
-  if (owner.timedOut) permission('Windows owner setup timed out; secret storage refused');
-  if (owner.code !== 0) permission('Cannot establish current user ownership of private Windows storage');
-  await checkWindowsAcl(target, directory);
+  await checkWindowsAcl(target, directory, sid);
 }
 
 export async function assertPrivatePath(target: string, directory: boolean): Promise<void> {
