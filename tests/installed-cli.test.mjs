@@ -89,7 +89,7 @@ test('actual packed CLI installs into a private prefix and its native command in
   const binInfo = await lstat(bin);
   assert.ok(binInfo.isFile() || binInfo.isSymbolicLink(), 'npm created a native command entry');
 
-  assert.equal(completed(installedCommand(bin, ['--version'], root), 'installed --version'), '0.1.0-preview.1');
+  assert.equal(completed(installedCommand(bin, ['--version'], root), 'installed --version'), '0.1.0-preview.2');
   const options = ['--home', home, '--catalog', catalog, '--offline', '--json'];
   const list = JSON.parse(completed(installedCommand(bin, [...options, 'list'], root), 'installed list'));
   assert.equal(list.status, 'ok');
@@ -134,7 +134,7 @@ test('actual packed CLI installs into a private prefix and its native command in
   assert.ok((await readFile(path.join(projected, 'SKILL.md'), 'utf8')).includes('Updated brandkit'));
   completed(installedCommand(bin, [...updatedOptions, 'rollback', 'brandkit', '--yes'], root), 'installed CLI rollback');
   status = JSON.parse(completed(installedCommand(bin, [...updatedOptions, 'status'], root), 'status after rollback')).data;
-  assert.equal(status.installed.find(item => item.id === 'brandkit').version, '0.1.0-preview.1');
+  assert.equal(status.installed.find(item => item.id === 'brandkit').version, '0.1.0-preview.2');
   assert.equal(await readFile(lockPath, 'utf8'), lockBefore, 'global update and rollback leave project lock unchanged');
   const verified = JSON.parse(completed(installedCommand(bin, [...options, 'verify'], root), 'installed verify'));
   assert.equal(verified.status, 'ok');

@@ -97,7 +97,7 @@ async function verifiedDirectory(ctx: Context, release: Release): Promise<string
   // An imported local tree or a self-asserted source.repository is never an execution authority.
   const snapshot = release.catalogEntry;
   const entry = snapshot
-    ? validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.1', minCliVersion: '0.1.0-preview.1', scope: ALLOWED_SCOPE,
+    ? validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.2', minCliVersion: '0.1.0-preview.2', scope: ALLOWED_SCOPE,
       categories: [{ id: snapshot.category, title: snapshot.category }],
       collections: [{ id: snapshot.collection, title: snapshot.collection, description: 'Installed curated release snapshot', skills: [snapshot.id] }], skills: [snapshot] }).skills[0]
     : (await loadCatalog(ctx)).skills.find((item) => item.id === release.id && item.version === release.version); // local only

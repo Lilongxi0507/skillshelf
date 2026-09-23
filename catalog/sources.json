@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "@llx17669475",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0-preview.2",
   "repositories": {
     "taste": {"repository":"Leonxlnx/taste-skill","commit":"5217fb45be2c0b302f29c9cd31cbd3237501c684"},
     "uiux": {"repository":"nextlevelbuilder/ui-ux-pro-max-skill","commit":"dcc40ff5133ef78276117db0cc34e7b83cc8aeba"}

@@ -61,7 +61,7 @@ export function validateState(value: unknown): State {
     if (release.catalogEntry !== undefined) {
       const entry = release.catalogEntry;
       let checked;
-      try { checked = validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.1', minCliVersion: '0.1.0-preview.1', scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Installed catalog snapshot', skills: [entry.id] }], skills: [entry] }).skills[0]!; }
+      try { checked = validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.2', minCliVersion: '0.1.0-preview.2', scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Installed catalog snapshot', skills: [entry.id] }], skills: [entry] }).skills[0]!; }
       catch { invalid('保存的策展版本快照无效'); }
       if (checked.localArtifact !== undefined || checked.id !== release.id || checked.name !== release.name || checked.version !== release.version || checked.packageName !== release.packageName || checked.integrity !== release.integrity || checked.contentDigest !== release.contentDigest || canonicalJson(checked.source) !== canonicalJson(release.source) || canonicalJson(checked.runtime) !== canonicalJson(manifest.runtime) || checked.fileCount !== manifest.files.length || checked.unpackedSize !== manifest.files.reduce((sum, file) => sum + file.size, 0)) invalid('保存的策展版本与release不一致');
     }

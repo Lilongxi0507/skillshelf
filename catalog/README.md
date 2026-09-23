@@ -2,7 +2,7 @@
 
 ## 发布状态
 
-本目录对应 `0.1.0-preview.1`，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。预览通道是 `next`，不是稳定版 `latest`；可安装性以 npm 公共注册表和[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)为准。
+本目录对应 `0.1.0-preview.2`，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。预览通道是 `next`，不是稳定版 `latest`；可安装性以 npm 公共注册表和[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)为准。
 
 首批内容由 18 个包组成：
 

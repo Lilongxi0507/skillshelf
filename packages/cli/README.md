@@ -4,7 +4,7 @@
 
 按需下载精选技能的完整文件，持久保存在本机，通过受管链接或完整副本接入 Agent 技能目录。CLI 只携带元数据，不捆绑全部技能；清理 npm/npx 缓存不会移走已安装内容。
 
-> `0.1.0-preview.1` 使用 `next` 预览通道，不代表稳定版。安装可用性以 npm 公共注册表为准；各平台的实测结果与限制见[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)。
+> `0.1.0-preview.2` 使用 `next` 预览通道，不代表稳定版。安装可用性以 npm 公共注册表为准；各平台的实测结果与限制见[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)。
 
 源码与完整指南：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 

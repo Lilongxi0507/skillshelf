@@ -37,7 +37,7 @@ export async function acquireSkill(ctx: Context, entry: CatalogEntry): Promise<{
  * Local paths are NEVER inherited from a lock; only the explicit active fixture can grant one.
  */
 export async function acquireLockedSkill(ctx: Context, entry: CatalogEntry): Promise<{ manifest: SkillManifest; directory: string; artifact: string }> {
-  const normalized = validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.1', minCliVersion: '0.1.0-preview.1', scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Explicit project lock', skills: [entry.id] }], skills: [entry] }).skills[0]!;
+  const normalized = validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.2', minCliVersion: '0.1.0-preview.2', scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Explicit project lock', skills: [entry.id] }], skills: [entry] }).skills[0]!;
   if (normalized.localArtifact !== undefined && !ctx.catalogPath) throw new Error('Project locks cannot authorize local artifacts');
   if (ctx.catalogPath) {
     const catalog = await loadCatalog(ctx), fixture = catalog.skills.find(item => item.id === entry.id);

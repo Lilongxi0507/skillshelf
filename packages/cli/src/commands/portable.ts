@@ -20,7 +20,7 @@ interface ExportSelection { id:string; name:string; version:string; integrity:st
 function artifactName(digest:string,integrity:string):string{return `${digest}-${createHash('sha256').update(integrity).digest('hex').slice(0,16)}.tgz`;}
 function checkedEntry(s:ExportSelection):CatalogEntry|undefined{
   if(!s.entry)return undefined;const e=s.entry;
-  const entry=validateCatalog({schemaVersion:1,catalogVersion:'0.1.0-preview.1',minCliVersion:'0.1.0-preview.1',scope:ALLOWED_SCOPE,categories:[{id:e.category,title:e.category}],collections:[{id:e.collection,title:e.collection,description:'Explicit import',skills:[e.id]}],skills:[e]}).skills[0]!;
+  const entry=validateCatalog({schemaVersion:1,catalogVersion:'0.1.0-preview.2',minCliVersion:'0.1.0-preview.2',scope:ALLOWED_SCOPE,categories:[{id:e.category,title:e.category}],collections:[{id:e.collection,title:e.collection,description:'Explicit import',skills:[e.id]}],skills:[e]}).skills[0]!;
   if(entry.localArtifact||entry.id!==s.id||entry.name!==s.name||entry.version!==s.version||entry.packageName!==s.packageName||entry.integrity!==s.integrity||entry.contentDigest!==s.contentDigest||canonicalJson(entry.runtime)!==canonicalJson(s.manifest.runtime))fail('INTEGRITY','导入版本快照不一致');return entry;
 }
 interface Portable { schemaVersion:1; format:'skillshelf-selection'|'skillshelf-bundle'; createdAt:string; skills:ExportSelection[]; agents:Array<{agent:string;label:string;mode:string}> }

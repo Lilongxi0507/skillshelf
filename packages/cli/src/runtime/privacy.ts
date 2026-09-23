@@ -165,6 +165,9 @@ async function restrictNewWindowsPath(target: string, directory: boolean): Promi
   const result = await localCommand(tools.icacls, [target, '/inheritance:r', '/grant:r', `*${sid}:${access}`, '*S-1-5-18:' + access, '*S-1-5-32-544:' + access, '/q'], tools.env);
   if (result.timedOut) permission('Windows ACL setup timed out; secret storage refused');
   if (result.code !== 0) permission('Cannot establish private Windows ACLs; secret storage refused');
+  const owner = await localCommand(tools.icacls, [target, '/setowner', `*${sid}`, '/q'], tools.env);
+  if (owner.timedOut) permission('Windows owner setup timed out; secret storage refused');
+  if (owner.code !== 0) permission('Cannot establish current user ownership of private Windows storage');
   await checkWindowsAcl(target, directory);
 }
 

@@ -1,6 +1,6 @@
 # 参与 SkillShelf
 
-感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。首个公开预览版 `0.1.0-preview.1` 的 18 个 npm 包已发布并核对确切版本、`next` 标签及下载摘要；原生跨平台候选 CI 和 Linux 公共 npm 安装结果见[公开验证记录](PUBLIC-VERIFICATION.md)。
+感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。当前公开预览版为 `0.1.0-preview.2`，包含 18 个 npm 包；确切版本、`next` 标签及下载摘要、原生跨平台和公共安装结果见[公开验证记录](PUBLIC-VERIFICATION.md)。
 
 ## 开发环境
 
@@ -42,7 +42,7 @@ npm test
 python3 tests/terminal-smoke.py --cli packages/cli/dist/index.js --catalog "$SKILLSHELF_TEST_CATALOG" --tmp "$SKILLSHELF_TEST_TMP"
 
 npm pack --workspace packages/cli --ignore-scripts --pack-destination "$work/packages"
-cli_tarball="$work/packages/llx17669475-skillshelf-0.1.0-preview.1.tgz"
+cli_tarball="$work/packages/llx17669475-skillshelf-0.1.0-preview.2.tgz"
 node scripts/audit-cli-package.mjs "$cli_tarball"
 node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_tarball"
 ```

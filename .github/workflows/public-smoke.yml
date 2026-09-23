@@ -6,7 +6,7 @@ on:
       expected_version:
         description: Exact version expected from the next tag
         required: true
-        default: 0.1.0-preview.1
+        default: 0.1.0-preview.2
 
 permissions:
   contents: read
