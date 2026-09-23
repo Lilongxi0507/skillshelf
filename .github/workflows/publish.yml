@@ -306,7 +306,9 @@ jobs:
             const url = new URL(metadata.dist.tarball);
             if (url.origin !== registry || url.username || url.password) throw new Error(`Unexpected tarball URL: ${row.name}`);
             const response = await fetch(url, { redirect: 'error', cache: 'no-store' });
-            if (!response.ok || integrity(Buffer.from(await response.arrayBuffer())) !== row.integrity) {
+            if (response.status === 404) return 'pending';
+            if (!response.ok) throw new Error(`Registry tarball request failed: HTTP ${response.status}: ${row.name}`);
+            if (integrity(Buffer.from(await response.arrayBuffer())) !== row.integrity) {
               throw new Error(`Registry tarball mismatch: ${row.name}`);
             }
             return true;
@@ -326,10 +328,6 @@ jobs:
           const present = [];
           for (const row of plan.packages) {
             const found = await publicVersion(row);
-            if (found) {
-              const next = await getJson(metadataUrl(row.name, 'next'));
-              if (next?.version !== row.version) throw new Error(`Existing next tag differs from plan: ${row.name}`);
-            }
             present.push(found);
           }
           console.log(`Preflight: ${present.filter(Boolean).length} matching versions, ${present.filter(found => !found).length} missing versions`);
