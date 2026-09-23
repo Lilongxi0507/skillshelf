@@ -51,7 +51,7 @@ jobs:
 
           function Invoke-SkillShelf([string[]] $cliArgs) {
             $output = & $script:bin @cliArgs
-            if ($LASTEXITCODE -ne 0) { throw "SkillShelf command failed: $($cliArgs -join ' ')" }
+            if ($LASTEXITCODE -ne 0) { throw "SkillShelf command failed: $($cliArgs -join ' '): $($output | Out-String)" }
             $result = $output | ConvertFrom-Json
             if ($result.status -ne 'ok') { throw "SkillShelf returned a non-ok status: $($cliArgs -join ' ')" }
             return $result.data
