@@ -155,6 +155,60 @@ jobs:
           node scripts/prepare-release.mjs --output "$SKILLSHELF_CI_TMP/packages" --cli-tarball "$SKILLSHELF_CI_TMP/packages/$artifact"
           printf 'SKILLSHELF_TEST_CLI_ARCHIVE=%s\n' "$SKILLSHELF_CI_TMP/packages/$artifact" >> "$GITHUB_ENV"
 
+      - name: Diagnose Windows ACL inspection without printing ACL data
+        if: runner.os == 'Windows'
+        timeout-minutes: 2
+        run: |
+          node --input-type=module <<'NODE'
+          import path from 'node:path';
+          import { localCommand, WINDOWS_ACL_INSPECTION_SCRIPT } from './packages/cli/dist/runtime/privacy.js';
+
+          const root = process.env.SystemRoot ?? process.env.SYSTEMROOT;
+          const target = process.env.SKILLSHELF_TEST_TMP;
+          const temporary = process.env.SKILLSHELF_CI_TMP;
+          if (!root || !/^[A-Za-z]:\\Windows$/iu.test(root) || !target || !path.win32.isAbsolute(target) || !temporary || !path.win32.isAbsolute(temporary)) {
+            console.log(JSON.stringify({ probe: 'preconditions', valid: false }));
+            process.exit(0);
+          }
+          const system32 = path.win32.join(root, 'System32');
+          const powershell = path.win32.join(system32, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+          const sparse = { SystemRoot: root, SYSTEMROOT: root, PATH: system32, SKILLSHELF_ACL_PATH: target };
+          const controlled = {
+            ...sparse,
+            WINDIR: root,
+            ComSpec: path.win32.join(system32, 'cmd.exe'),
+            PSModulePath: path.win32.join(system32, 'WindowsPowerShell', 'v1.0', 'Modules'),
+            TEMP: temporary,
+            TMP: temporary,
+            USERPROFILE: temporary,
+          };
+          const simple = '@{ok=$true}|ConvertTo-Json -Compress';
+          for (const [name, script, env] of [
+            ['simple-sparse', simple, sparse],
+            ['acl-sparse', WINDOWS_ACL_INSPECTION_SCRIPT, sparse],
+            ['simple-controlled', simple, controlled],
+            ['acl-controlled', WINDOWS_ACL_INSPECTION_SCRIPT, controlled],
+          ]) {
+            const started = Date.now();
+            try {
+              const result = await localCommand(powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], env);
+              let jsonParseable = false;
+              try { JSON.parse(result.stdout); jsonParseable = true; } catch {}
+              console.log(JSON.stringify({
+                probe: name,
+                code: result.code,
+                timedOut: result.timedOut,
+                elapsedMs: Date.now() - started,
+                stdoutBytes: Buffer.byteLength(result.stdout),
+                stderrBytes: Buffer.byteLength(result.stderr),
+                jsonParseable,
+              }));
+            } catch {
+              console.log(JSON.stringify({ probe: name, failedToRun: true, elapsedMs: Date.now() - started }));
+            }
+          }
+          NODE
+
       - name: Run Node tests including native install and crash recovery
         run: npm test
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fail } from '../errors.js';
 
-export interface LocalCommandResult { code: number; stdout: string; stderr: string }
+export interface LocalCommandResult { code: number; stdout: string; stderr: string; timedOut: boolean }
 /** Shared read/write budget for private provider configuration, measured in UTF-8 bytes. */
 export const PRIVATE_CONFIG_MAX_BYTES = 1_048_576;
 
@@ -13,8 +13,8 @@ export const PRIVATE_CONFIG_MAX_BYTES = 1_048_576;
 export async function localCommand(command: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<LocalCommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { shell: false, windowsHide: true, env, ...(cwd ? { cwd } : {}), stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = ''; let stderr = ''; let tooLarge = false;
-    const timer = setTimeout(() => child.kill(), 10_000);
+    let stdout = ''; let stderr = ''; let tooLarge = false; let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill(); }, 10_000);
     timer.unref();
     child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); if (stdout.length > 65_536) { tooLarge = true; child.kill(); } });
     child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); if (stderr.length > 65_536) { tooLarge = true; child.kill(); } });
@@ -22,7 +22,7 @@ export async function localCommand(command: string, args: string[], env: NodeJS.
     child.once('close', (code) => {
       clearTimeout(timer);
       if (tooLarge) reject(new Error('Local probe exceeded its output limit'));
-      else resolve({ code: code ?? -1, stdout, stderr });
+      else resolve({ code: code ?? -1, stdout, stderr, timedOut });
     });
   });
 }
@@ -73,6 +73,7 @@ function windowsTools(): { powershell: string; icacls: string; whoami: string; e
 async function windowsSid(): Promise<string> {
   const tools = windowsTools();
   const result = await localCommand(tools.whoami, ['/user', '/fo', 'csv', '/nh'], tools.env);
+  if (result.timedOut) permission('Windows user SID verification timed out; secret storage refused');
   const sid = result.code === 0 ? result.stdout.match(/\bS-1-5-21-\d+-\d+-\d+-\d+\b/u)?.[0] : undefined;
   if (!sid) permission('Cannot verify the current Windows user SID; secret storage refused');
   return sid;
@@ -94,16 +95,19 @@ export function validateWindowsAcl(value: unknown, sid: string): boolean {
   return selfFull;
 }
 
+export const WINDOWS_ACL_INSPECTION_SCRIPT = "$ErrorActionPreference='Stop'; $a=Get-Acl -LiteralPath $env:SKILLSHELF_ACL_PATH; $s=[System.Security.Principal.SecurityIdentifier]; $r=@($a.GetAccessRules($true,$true,$s)|ForEach-Object { @{sid=$_.IdentityReference.Value;type=$_.AccessControlType.ToString();rights=[int]$_.FileSystemRights;inherited=$_.IsInherited} }); @{owner=$a.GetOwner($s).Value;protected=$a.AreAccessRulesProtected;rules=$r}|ConvertTo-Json -Depth 4 -Compress";
+
 async function checkWindowsAcl(target: string): Promise<void> {
   const tools = windowsTools();
   const sid = await windowsSid();
   // Paths travel through an environment variable, not interpolated PowerShell source; no tokens in argv.
-  const script = "$ErrorActionPreference='Stop'; $a=Get-Acl -LiteralPath $env:SKILLSHELF_ACL_PATH; $s=[System.Security.Principal.SecurityIdentifier]; $r=@($a.GetAccessRules($true,$true,$s)|ForEach-Object { @{sid=$_.IdentityReference.Value;type=$_.AccessControlType.ToString();rights=[int]$_.FileSystemRights;inherited=$_.IsInherited} }); @{owner=$a.GetOwner($s).Value;protected=$a.AreAccessRulesProtected;rules=$r}|ConvertTo-Json -Depth 4 -Compress";
-  const result = await localCommand(tools.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], { ...tools.env, SKILLSHELF_ACL_PATH: target });
+  const result = await localCommand(tools.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_ACL_INSPECTION_SCRIPT], { ...tools.env, SKILLSHELF_ACL_PATH: target });
+  if (result.timedOut) permission('Windows ACL inspection timed out; secret storage refused');
   let acl: unknown;
   try { acl = JSON.parse(result.stdout); } catch { permission('Cannot inspect Windows ACLs; secret storage refused'); }
   if (result.code !== 0 || !validateWindowsAcl(acl, sid)) permission('Windows storage ACLs are not private to the verified user, SYSTEM and Administrators');
   const checked = await localCommand(tools.icacls, [target, '/verify', '/q'], tools.env);
+  if (checked.timedOut) permission('Windows ACL integrity verification timed out');
   if (checked.code !== 0) permission('Windows ACL integrity verification failed');
 }
 
@@ -112,6 +116,7 @@ async function restrictNewWindowsPath(target: string, directory: boolean): Promi
   const sid = await windowsSid();
   const access = directory ? '(OI)(CI)F' : 'F';
   const result = await localCommand(tools.icacls, [target, '/inheritance:r', '/grant:r', `*${sid}:${access}`, '*S-1-5-18:' + access, '*S-1-5-32-544:' + access, '/q'], tools.env);
+  if (result.timedOut) permission('Windows ACL setup timed out; secret storage refused');
   if (result.code !== 0) permission('Cannot establish private Windows ACLs; secret storage refused');
   await checkWindowsAcl(target);
 }

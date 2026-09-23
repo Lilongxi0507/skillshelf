@@ -141,20 +141,33 @@ test('compatibility scan roots are hints and are deduplicated', async (t) => {
   assert.match(agentHints(cursor).join('\n'), /Overlapping roots/);
 });
 
-test('Windows lexical paths, case-insensitive IDs and environment expansion (not a real-host test)', async () => {
-  const options = { home: 'C:\\Users\\Alice', env: {}, platform: 'win32' };
+test('Windows path casing, IDs and environment expansion use fixture storage', async (t) => {
+  // A native Windows run must use an existing volume: fake C:/D:/E: roots
+  // rightly fail canonicalAgentPath when those drives are absent.
+  const fixtureRoot = process.platform === 'win32' ? (await fixture(t)).root : null;
+  const home = fixtureRoot ? path.win32.join(fixtureRoot, 'Users', 'Alice') : 'C:\\Users\\Alice';
+  const dshHome = fixtureRoot ? path.win32.join(fixtureRoot, 'dsh-one') : 'D:\\dsh-one';
+  const work = fixtureRoot ? path.win32.join(fixtureRoot, 'work') : 'E:\\work';
+  const project = fixtureRoot ? path.win32.join(fixtureRoot, 'project') : 'D:\\project';
+  const differentlyCased = fixtureRoot
+    ? path.win32.join(fixtureRoot.toLowerCase(), 'WORK', 'skills')
+    : 'e:\\WORK\\skills';
+  const options = { home, env: {}, platform: 'win32' };
   const codex = await resolveAgentTarget('codex', options);
-  assert.equal(codex.path, 'C:\\Users\\Alice\\.agents\\skills');
-  const target = await resolveAgentTarget('dsh', { ...options, env: { DSH_HOME: 'D:\\dsh-one' }, path: '%ROOT%\\skills', ...( { env: { ROOT: 'E:\\work', DSH_HOME: 'D:\\dsh-one' } } ) });
-  assert.equal(target.path, 'E:\\work\\skills');
-  const lower = await resolveAgentTarget('dsh', { ...options, path: 'e:\\WORK\\skills' });
+  assert.equal(codex.path, path.win32.join(home, '.agents', 'skills'));
+  const target = await resolveAgentTarget('dsh', { ...options, env: { ROOT: work, DSH_HOME: dshHome }, path: '%ROOT%\\skills' });
+  assert.equal(target.path, path.win32.join(work, 'skills'));
+  const lower = await resolveAgentTarget('dsh', { ...options, path: differentlyCased });
   assert.equal(lower.id, target.id);
-  assert.equal((await resolveAgentTarget('codex', { ...options, project: 'D:\\project' })).scope, 'D:\\project');
+  assert.equal((await resolveAgentTarget('codex', { ...options, project })).scope, project);
   assert.equal(target.discovery, process.platform === 'win32' ? target.discovery : 'unverified');
 });
 
-test('Windows rejects drive-relative, device, ADS and reserved paths', async () => {
+test('Windows rejects drive-relative, device, ADS and reserved paths', async (t) => {
+  // Resolve the home first on native Windows so each rejection tests the
+  // invalid target path, not an unrelated missing C: drive.
+  const home = process.platform === 'win32' ? (await fixture(t)).home : 'C:\\Users\\Alice';
   for (const value of ['C:skills', '\\skills', '\\\\?\\C:\\skills', 'C:\\data\\NUL', 'C:\\data\\file:stream', 'C:\\data\\trailing.']) {
-    await assert.rejects(resolveAgentTarget('custom', { home: 'C:\\Users\\Alice', env: {}, platform: 'win32', path: value }));
+    await assert.rejects(resolveAgentTarget('custom', { home, env: {}, platform: 'win32', path: value }));
   }
 });
