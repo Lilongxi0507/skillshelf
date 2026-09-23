@@ -155,20 +155,23 @@ jobs:
           node scripts/prepare-release.mjs --output "$SKILLSHELF_CI_TMP/packages" --cli-tarball "$SKILLSHELF_CI_TMP/packages/$artifact"
           printf 'SKILLSHELF_TEST_CLI_ARCHIVE=%s\n' "$SKILLSHELF_CI_TMP/packages/$artifact" >> "$GITHUB_ENV"
 
-      - name: Diagnose Windows ACL inspection without printing ACL data
+      # TEMPORARY diagnostic run: this step intentionally fails after the probes.
+      # Remove it after finding the ACL cause so Windows runs the complete tests below.
+      - name: Diagnose Windows PowerShell startup and ACL inspection
         if: runner.os == 'Windows'
-        timeout-minutes: 2
+        timeout-minutes: 5
         run: |
           node --input-type=module <<'NODE'
+          import { spawn } from 'node:child_process';
           import path from 'node:path';
-          import { localCommand, WINDOWS_ACL_INSPECTION_SCRIPT } from './packages/cli/dist/runtime/privacy.js';
+          import { WINDOWS_ACL_INSPECTION_SCRIPT } from './packages/cli/dist/runtime/privacy.js';
 
           const root = process.env.SystemRoot ?? process.env.SYSTEMROOT;
           const target = process.env.SKILLSHELF_TEST_TMP;
           const temporary = process.env.SKILLSHELF_CI_TMP;
           if (!root || !/^[A-Za-z]:\\Windows$/iu.test(root) || !target || !path.win32.isAbsolute(target) || !temporary || !path.win32.isAbsolute(temporary)) {
             console.log(JSON.stringify({ probe: 'preconditions', valid: false }));
-            process.exit(0);
+            process.exit(1);
           }
           const system32 = path.win32.join(root, 'System32');
           const powershell = path.win32.join(system32, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
@@ -182,31 +185,51 @@ jobs:
             TMP: temporary,
             USERPROFILE: temporary,
           };
-          const simple = '@{ok=$true}|ConvertTo-Json -Compress';
-          for (const [name, script, env] of [
-            ['simple-sparse', simple, sparse],
-            ['acl-sparse', WINDOWS_ACL_INSPECTION_SCRIPT, sparse],
-            ['simple-controlled', simple, controlled],
-            ['acl-controlled', WINDOWS_ACL_INSPECTION_SCRIPT, controlled],
-          ]) {
-            const started = Date.now();
-            try {
-              const result = await localCommand(powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], env);
+          const full = { ...process.env, SKILLSHELF_ACL_PATH: target };
+          const scripts = {
+            static: "[Console]::WriteLine('1')",
+            json: '@{ok=$true}|ConvertTo-Json -Compress',
+            acl: WINDOWS_ACL_INSPECTION_SCRIPT,
+          };
+          const limitMs = 25_000;
+          const inspect = (script, env) => new Promise(resolve => {
+            let stdout = ''; let stdoutBytes = 0; let stderrBytes = 0;
+            let timedOut = false; let outputLimit = false; let finished = false;
+            const child = spawn(powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], {
+              shell: false, windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'],
+            });
+            const complete = result => {
+              if (finished) return;
+              finished = true;
+              clearTimeout(timer);
+              resolve(result);
+            };
+            const timer = setTimeout(() => { timedOut = true; child.kill(); }, limitMs);
+            child.stdout.on('data', chunk => {
+              stdoutBytes += chunk.length;
+              if (stdoutBytes <= 65_536) stdout += chunk.toString('utf8');
+              else { outputLimit = true; child.kill(); }
+            });
+            child.stderr.on('data', chunk => {
+              stderrBytes += chunk.length;
+              if (stderrBytes > 65_536) { outputLimit = true; child.kill(); }
+            });
+            child.once('error', () => complete({ status: 'spawn-error', stdoutBytes, stderrBytes }));
+            child.once('close', code => {
               let jsonParseable = false;
-              try { JSON.parse(result.stdout); jsonParseable = true; } catch {}
-              console.log(JSON.stringify({
-                probe: name,
-                code: result.code,
-                timedOut: result.timedOut,
-                elapsedMs: Date.now() - started,
-                stdoutBytes: Buffer.byteLength(result.stdout),
-                stderrBytes: Buffer.byteLength(result.stderr),
-                jsonParseable,
-              }));
-            } catch {
-              console.log(JSON.stringify({ probe: name, failedToRun: true, elapsedMs: Date.now() - started }));
+              if (!outputLimit) { try { JSON.parse(stdout); jsonParseable = true; } catch {} }
+              complete({ status: timedOut ? 'timeout' : outputLimit ? 'output-limit' : 'closed', code: code ?? -1, timedOut, stdoutBytes, stderrBytes, jsonParseable });
+            });
+          });
+          for (const [environment, env] of [['sparse', sparse], ['controlled', controlled], ['full', full]]) {
+            for (const [kind, script] of Object.entries(scripts)) {
+              const started = Date.now();
+              const result = await inspect(script, env);
+              console.log(JSON.stringify({ probe: `${kind}-${environment}`, ...result, elapsedMs: Date.now() - started }));
             }
           }
+          console.log(JSON.stringify({ probe: 'diagnostic-only-stop', status: 'intentional' }));
+          process.exitCode = 1;
           NODE
 
       - name: Run Node tests including native install and crash recovery
