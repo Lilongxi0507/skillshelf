@@ -95,17 +95,64 @@ export function validateWindowsAcl(value: unknown, sid: string): boolean {
   return selfFull;
 }
 
-export const WINDOWS_ACL_INSPECTION_SCRIPT = "$ErrorActionPreference='Stop'; $a=Get-Acl -LiteralPath $env:SKILLSHELF_ACL_PATH; $s=[System.Security.Principal.SecurityIdentifier]; $r=@($a.GetAccessRules($true,$true,$s)|ForEach-Object { @{sid=$_.IdentityReference.Value;type=$_.AccessControlType.ToString();rights=[int]$_.FileSystemRights;inherited=$_.IsInherited} }); @{owner=$a.GetOwner($s).Value;protected=$a.AreAccessRulesProtected;rules=$r}|ConvertTo-Json -Depth 4 -Compress";
+interface WindowsAclRecord {
+  owner: string;
+  protected: boolean;
+  rules: Array<{ sid: string; type: 'Allow' | 'Deny'; rights: number; inherited: boolean }>;
+}
 
-async function checkWindowsAcl(target: string): Promise<void> {
+const WINDOWS_SID = /^S-1-(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*)){1,15}$/u;
+
+/** Parse only the complete, ASCII, versioned record emitted by the fixed .NET ACL probe. */
+export function parseWindowsAclRecord(stdout: string): WindowsAclRecord | null {
+  if (stdout.length === 0 || stdout.length > 65_536 || !/^[\x09\x0a\x0d\x20-\x7e]*$/u.test(stdout)) return null;
+  const lines = stdout.split(/\r?\n/u);
+  if (lines.pop() !== '' || lines.length < 5 || lines[0] !== 'SSACL1' || lines.at(-1) !== 'END') return null;
+  const ownerLine = lines[1]; const protectionLine = lines[2]; const quantityLine = lines[3];
+  if (!ownerLine || !protectionLine || !quantityLine) return null;
+  const owner = ownerLine.split('\t');
+  const protection = protectionLine.split('\t');
+  const quantity = quantityLine.split('\t');
+  const ownerSid = owner[1]; const protectedFlag = protection[1]; const quantityText = quantity[1];
+  if (owner.length !== 2 || owner[0] !== 'O' || !ownerSid || !WINDOWS_SID.test(ownerSid)) return null;
+  if (protection.length !== 2 || protection[0] !== 'P' || !protectedFlag || !/^[01]$/u.test(protectedFlag)) return null;
+  if (quantity.length !== 2 || quantity[0] !== 'N' || !quantityText || !/^(?:0|[1-9]\d{0,3})$/u.test(quantityText)) return null;
+  const count = Number(quantityText);
+  if (count === 0 || count > 1024 || lines.length !== count + 5) return null;
+  const rules: WindowsAclRecord['rules'] = [];
+  for (const line of lines.slice(4, -1)) {
+    const entry = line.split('\t');
+    const aceSid = entry[1]; const type = entry[2]; const rightsText = entry[3]; const inherited = entry[4];
+    if (entry.length !== 5 || entry[0] !== 'A' || !aceSid || !WINDOWS_SID.test(aceSid) || !type || !/^[01]$/u.test(type) || !rightsText || !/^-?(?:0|[1-9]\d{0,9})$/u.test(rightsText) || !inherited || !/^[01]$/u.test(inherited)) return null;
+    const rights = Number(rightsText);
+    if (!Number.isInteger(rights) || rights < -2_147_483_648 || rights > 2_147_483_647 || String(rights) !== rightsText) return null;
+    rules.push({ sid: aceSid, type: type === '0' ? 'Allow' : 'Deny', rights, inherited: inherited === '1' });
+  }
+  return { owner: ownerSid, protected: protectedFlag === '1', rules };
+}
+
+/** Paths and expected kind are controlled environment values, never PowerShell source. */
+export const WINDOWS_ACL_INSPECTION_SCRIPT = [
+  "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.Encoding]::ASCII; $culture=[System.Globalization.CultureInfo]::InvariantCulture;",
+  '$p=$env:SKILLSHELF_ACL_PATH; $k=$env:SKILLSHELF_ACL_KIND;',
+  "if ($k -eq 'D') { $a=[System.IO.Directory]::GetAccessControl($p) } elseif ($k -eq 'F') { $a=[System.IO.File]::GetAccessControl($p) } else { exit 2 };",
+  '$s=[System.Security.Principal.SecurityIdentifier]; $owner=$a.GetOwner($s).Value; $rules=$a.GetAccessRules($true,$true,$s);',
+  "[Console]::WriteLine('SSACL1'); [Console]::WriteLine('O' + [char]9 + $owner);",
+  "[Console]::WriteLine('P' + [char]9 + ([int]$a.AreAccessRulesProtected).ToString($culture)); [Console]::WriteLine('N' + [char]9 + ([int]$rules.Count).ToString($culture));",
+  "foreach ($rule in $rules) { [Console]::WriteLine('A' + [char]9 + $rule.IdentityReference.Value + [char]9 + ([int]$rule.AccessControlType).ToString($culture) + [char]9 + ([int]$rule.FileSystemRights).ToString($culture) + [char]9 + ([int]$rule.IsInherited).ToString($culture)) };",
+  "[Console]::WriteLine('END');",
+].join(' ');
+
+async function checkWindowsAcl(target: string, directory: boolean): Promise<void> {
   const tools = windowsTools();
   const sid = await windowsSid();
   // Paths travel through an environment variable, not interpolated PowerShell source; no tokens in argv.
-  const result = await localCommand(tools.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_ACL_INSPECTION_SCRIPT], { ...tools.env, SKILLSHELF_ACL_PATH: target });
+  const result = await localCommand(tools.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_ACL_INSPECTION_SCRIPT], { ...tools.env, SKILLSHELF_ACL_PATH: target, SKILLSHELF_ACL_KIND: directory ? 'D' : 'F' });
   if (result.timedOut) permission('Windows ACL inspection timed out; secret storage refused');
-  let acl: unknown;
-  try { acl = JSON.parse(result.stdout); } catch { permission('Cannot inspect Windows ACLs; secret storage refused'); }
-  if (result.code !== 0 || !validateWindowsAcl(acl, sid)) permission('Windows storage ACLs are not private to the verified user, SYSTEM and Administrators');
+  if (result.code !== 0 || result.stderr.length !== 0) permission('Cannot inspect Windows ACLs; secret storage refused');
+  const acl = parseWindowsAclRecord(result.stdout);
+  if (!acl) permission('Cannot inspect Windows ACLs; secret storage refused');
+  if (!validateWindowsAcl(acl, sid)) permission('Windows storage ACLs are not private to the verified user, SYSTEM and Administrators');
   const checked = await localCommand(tools.icacls, [target, '/verify', '/q'], tools.env);
   if (checked.timedOut) permission('Windows ACL integrity verification timed out');
   if (checked.code !== 0) permission('Windows ACL integrity verification failed');
@@ -118,14 +165,14 @@ async function restrictNewWindowsPath(target: string, directory: boolean): Promi
   const result = await localCommand(tools.icacls, [target, '/inheritance:r', '/grant:r', `*${sid}:${access}`, '*S-1-5-18:' + access, '*S-1-5-32-544:' + access, '/q'], tools.env);
   if (result.timedOut) permission('Windows ACL setup timed out; secret storage refused');
   if (result.code !== 0) permission('Cannot establish private Windows ACLs; secret storage refused');
-  await checkWindowsAcl(target);
+  await checkWindowsAcl(target, directory);
 }
 
 export async function assertPrivatePath(target: string, directory: boolean): Promise<void> {
   await assertNoLinkAncestors(target);
   const info = await lstat(target);
   if (directory ? !info.isDirectory() : !info.isFile()) permission('Runtime storage has an unexpected file type');
-  if (process.platform === 'win32') { await checkWindowsAcl(target); return; }
+  if (process.platform === 'win32') { await checkWindowsAcl(target, directory); return; }
   if (typeof process.getuid !== 'function' || info.uid !== process.getuid()) permission('Runtime storage is not owned by the current user');
   const expected = directory ? 0o700 : 0o600;
   if ((info.mode & 0o7777) !== expected) permission(`Runtime ${directory ? 'directories require 0700' : 'files require 0600'} permissions; existing permissions are never changed automatically`);

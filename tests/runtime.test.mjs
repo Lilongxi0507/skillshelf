@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { addProvider, listProviders, removeProvider, runSkill, runtimeDoctor, SecretRedactor } from '../packages/cli/dist/runtime/runtime.js';
 import { providerUrl } from '../packages/cli/dist/runtime/providers.js';
-import { sanitizedEnvironment, validateWindowsAcl } from '../packages/cli/dist/runtime/privacy.js';
+import { parseWindowsAclRecord, sanitizedEnvironment, validateWindowsAcl } from '../packages/cli/dist/runtime/privacy.js';
 import { digestManifest, inventory } from '../packages/cli/dist/validation.js';
 
 const posix = { skip: process.platform === 'win32' ? 'POSIX permissions/fake executable; no claim of Windows integration verification' : false };
@@ -233,6 +233,44 @@ test('Windows SID/ACL validation fails closed (pure fixtures, not live icacls ex
   assert.equal(validateWindowsAcl(good, sid), true);
   for (const bad of [{ ...good, owner: 'S-1-5-18' }, { ...good, protected: false }, { ...good, rules: [{ ...rule, inherited: true }] }, { ...good, rules: [{ ...rule, sid: 'S-1-1-0' }] }, { ...good, rules: [{ ...rule, type: 'Deny' }] }, { ...good, rules: [{ ...rule, rights: 1 }] }]) assert.equal(validateWindowsAcl(bad, sid), false);
   assert.equal(validateWindowsAcl(good, 'administrator'), false);
+});
+
+test('Windows ACL line protocol accepts only complete typed records and preserves permission rejection', () => {
+  const sid = 'S-1-5-21-111-222-333-1001';
+  const lines = ['SSACL1', `O\t${sid}`, 'P\t1', 'N\t2', `A\t${sid}\t0\t2032127\t0`, 'A\tS-1-5-18\t0\t2032127\t0', 'END', ''];
+  const good = lines.join('\r\n');
+  assert.deepEqual(parseWindowsAclRecord(good), {
+    owner: sid, protected: true,
+    rules: [
+      { sid, type: 'Allow', rights: 2032127, inherited: false },
+      { sid: 'S-1-5-18', type: 'Allow', rights: 2032127, inherited: false },
+    ],
+  });
+  assert.equal(validateWindowsAcl(parseWindowsAclRecord(good), sid), true);
+  assert.equal(validateWindowsAcl(parseWindowsAclRecord(good.replace('P\t1', 'P\t0')), sid), false);
+  assert.equal(validateWindowsAcl(parseWindowsAclRecord(good.replace(`A\t${sid}\t0`, `A\t${sid}\t1`)), sid), false);
+  assert.equal(validateWindowsAcl(parseWindowsAclRecord(good.replace(`A\t${sid}\t0\t2032127\t0`, `A\t${sid}\t0\t2032127\t1`)), sid), false);
+  const minimumRights = parseWindowsAclRecord(good.replace('2032127', '-2147483648'));
+  assert.equal(minimumRights?.rules[0]?.rights, -2147483648);
+  assert.equal(validateWindowsAcl(minimumRights, sid), false);
+  for (const malformed of [
+    good.replace('SSACL1', 'SSACL2'),
+    '\ufeff' + good,
+    good.trimEnd(),
+    good.replace('END\r\n', ''),
+    good.replace('N\t2', 'N\t3'),
+    ['SSACL1', `O\t${sid}`, 'P\t1', 'N\t0', 'END', ''].join('\r\n'),
+    good.replace('N\t2', 'N\t9999'),
+    good.replace(`A\t${sid}\t0`, `A\t${sid}\t2`),
+    good.replace('2032127', '2147483648'),
+    good.replace('2032127', '-2147483649'),
+    good.replace('2032127', '-0'),
+    good.replace('2032127\t0', '2032127\t2'),
+    good.replace(`O\t${sid}`, `O\t${sid}\tunexpected`),
+    good.replace(`O\t${sid}`, 'O\tS-1-5-021-111-222-333-1001'),
+    good + 'A\tS-1-1-0\t0\t1\t0\r\n',
+    good.replace('END', 'E\u0000ND'),
+  ]) assert.equal(parseWindowsAclRecord(malformed), null);
 });
 
 test('secret redactor handles arbitrary chunk boundaries, overlapping keys and encoded forms', () => {
