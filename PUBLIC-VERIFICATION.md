@@ -1,42 +1,37 @@
 # 0.1.0-preview.1 公开验证记录
 
-最近验证日期：2026-09-23（UTC）。发布目标为 `@llx17669475`、`next/public`。
+最近验证日期：2026-09-23（UTC）。发布目标为 `@llx17669475`、`next/public`；验证源码为公开仓库 [`f6351a1`](https://github.com/Lilongxi0507/skillshelf/commit/f6351a1)。
 
-**本记录更新时尚未执行 npm 发布。** 以下是实际运行的本地发布门禁，不是 registry 可用性或跨平台 GitHub Actions 成功的替代证明。发布与最终 Actions 的状态须另行核对并更新。
+**六组原生平台 CI 已通过，npm 尚未发布。** [GitHub Actions 运行记录](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)中的生产作业及 Linux、macOS、Windows 上的 Node.js 22/24 作业均为成功。检查时公共 npm registry 尚无计划中的 18 个确切版本；安装命令仍需等待维护者完成官方交互认证、发布与公共 registry 回读。
 
-## 实际验证结果
+## 原生平台结果
 
-| 检查 | 环境与结果 |
-| --- | --- |
-| TypeScript 编译 | 严格 NodeNext ESM 编译通过 |
-| 当前候选完整 Node 测试 | Linux x64，Node.js **26.7.0：114 通过、0 失败、1 跳过**；跳过项仅为 Windows 原生 ACL 测试 |
-| 旧基线完整 Node 测试 | 2026-09-22 的改动前源码：Linux x64，Node.js 22.20.0 与 26.7.0 各 **110/110 通过、0 跳过**；不代表当前候选的 Node.js 22 验收 |
-| 生命周期测试输入 | 设置独立测试 home、`SKILLSHELF_TEST_TMP` 和实际打包生成的 `SKILLSHELF_TEST_CATALOG` |
-| 崩溃恢复 | 真实子进程 SIGKILL、写前日志恢复、目标锁竞争覆盖通过 |
-| 真实终端 | POSIX PTY：40/80/120 列 NO_COLOR 和 80 列彩色，共 **4/4 通过**；含 SIGWINCH、取消返回、多选预览且不确认写入 |
-| 数据包 | 16 个实际技能 tgz：SHA-512、完整 manifest、逐文件 SHA-256、权限、许可与 NOTICE 校验通过 |
-| UI/UX Pro Max 完整性 | **74 个文件、3,580,413 字节**，没有缩减为单页技能 |
-| Catalog 包 | 固定 4 个元数据/法律文件，不含技能正文；bootstrap 与本次技能包 SRI 一致 |
-| CLI 包 | 当前候选实际 npm pack 后审计：**58 个白名单文件、304,644 字节解包大小**；不含技能正文、凭据或 lifecycle hooks |
-| 完整发布计划 | 从实际 18 个包生成，固定 scope、确切版本、`next/public`；没有使用 dry-run 的虚拟文件名代替实物 |
-| 真正 npm 安装 | 将当前候选实际 CLI tgz 以 `--ignore-scripts` 安装到独立 prefix，真实 `skillshelf --version` 返回 `0.1.0-preview.1`；`list`、按需安装、受管 Agent 复制、项目锁与冻结恢复、离线更新/回滚、`verify` 通过 |
-| 安装后按需读取 | 安装 UI/UX Pro Max 和两个第一方工具并完整 `verify` 通过；无 Agent 原生目录写入 |
-| 本地 Python | Python **3.10.12**，两个第一方工具在 `--offline run <id> -- --help` 下实际执行并成功，无 provider 配置或计费请求 |
-| 已知依赖漏洞 | `npm audit --omit=dev` 当次 registry 结果：**0 项已知漏洞**；不是未来无漏洞承诺 |
+生产作业在 Linux/Node.js 22 上生成并审计了同一组 **18 个实际 tgz**（16 个完整技能包、1 个目录包、1 个 CLI 包），并将同一份 bundle 交给六组平台作业。CLI tarball 为 **58 个白名单文件、309,492 字节解包大小**。各平台重新校验收到的包及发布计划，再运行适用测试并从该 CLI tarball 安装验证。
+
+| 原生 CI 系统 | Node.js | 测试总数 | 通过 | 失败 | 跳过 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Linux | 22 | 118 | 117 | 0 | 1 |
+| Linux | 24 | 118 | 117 | 0 | 1 |
+| macOS | 22 | 118 | 117 | 0 | 1 |
+| macOS | 24 | 118 | 117 | 0 | 1 |
+| Windows | 22 | 118 | 84 | 0 | 34 |
+| Windows | 24 | 118 | 84 | 0 | 34 |
+
+Linux/macOS 唯一跳过项为 **Windows 原生 ACL** 测试；Windows 跳过的 34 项主要为 POSIX 权限/符号链接或假解释器夹具，另含条件不适用的纯路径夹具及以真实 `.cmd` 安装测试替代的 npm symlink 入口测试，均不能算作通过。Linux/macOS 另行通过 POSIX PTY 终端 smoke；Windows 通过实际打包 CLI 的 PowerShell `.cmd` 入口、私有 ACL、Python 帮助输出及原生中断恢复测试。各平台使用独立测试 home 和实际打包生成的开发目录，验证 CLI 版本、目录读取、按需安装、`verify`、受管 Agent 目标、项目锁与冻结恢复、离线更新/回滚等核心流程；未写入真实用户 Agent 目录。
 
 ## 首发检查中修复的问题
 
 - 正式命名空间与 `next` 更新渠道统一，拒绝任意其他 scope/tag。
-- `run` 透传参数时移除一个 CLI 层的前置 `--` 分隔符，避免 Python 将 `--help` 错当位置参数。新增真实 CLI/Python 回归测试，包含有/无分隔符两种调用；技能正文未因此修改。
+- `run` 透传参数时移除一个 CLI 层的前置 `--` 分隔符，避免 Python 将 `--help` 错当位置参数；Windows Python 子进程固定使用 UTF-8 输出。
+- Windows 事务日志按原生文件身份验证，恢复检查不因平台文件标识差异误判；私有目录/文件 ACL 通过原生检查并拒绝过宽授权。
 - 打包工具增加固定真实 CLI 文件清单、完整目录一致性与拒绝覆盖不同已有产物的检查。
 
 ## 仍未验证，不作通过声明
 
-- macOS 和 Windows 的真实设备、ACL、链接/junction/copy、恢复行为；Windows 路径/ACL 纯测试夹具不等于原生验收。
-- 各 Agent 对技能的原生发现与执行；路径存在和可投影不等于 Agent 认可。
-- Tavily/Brave、图片和视频提供商的真实付费调用、取消与计费结果。测试仅用无收费夹具或本地帮助。
-- [初次 GitHub Actions Linux Node.js 22/24 作业](https://github.com/Lilongxi0507/skillshelf/actions/runs/35753541853)已通过，但运行的是本次跨平台改动前的源码；当前候选的 Linux/macOS/Windows 六组原生作业尚待运行。
-- npm registry 的 18 包读回、`next` 标签、下载 SRI 和公开安装，在这份初始记录编写时尚未执行。
+- 这次记录覆盖 GitHub 托管的原生 CI 环境；其他系统版本、设备和用户配置没有逐一实测。
+- 各 Agent 对技能的原生发现与执行；路径存在和受管投影成功不等于 Agent 已识别技能。
+- Tavily/Brave、图片和视频提供商的真实付费调用、取消与计费结果；测试仅用无收费夹具或本地帮助。
+- npm registry 的 18 包读回、`next` 标签、下载 SRI 和公开安装；它们须在真正发布后验证。
 - OIDC Trusted Publishing 与 provenance 签名尚未配置；内容摘要校验不是来源签名或执行沙箱。
 
 复现步骤见 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [docs/release.md](docs/release.md)。测试应使用私有临时目录，不复用真实用户技能库；发布者必须单独审查公开源码与真实包文件。

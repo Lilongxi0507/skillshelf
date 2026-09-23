@@ -4,7 +4,7 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **发布准备中，尚未上架。** 首个公开预览版计划为 `0.1.0-preview.1`，npm 命名空间为 `@llx17669475`，发布通道为 `next`。下文的 npm 安装命令在发布完成后才可用；包名、源码地址和 CI 配置不代表已经发布或验证通过。
+> **发布准备中，尚未上架。** 首个公开预览版计划为 `0.1.0-preview.1`，npm 命名空间为 `@llx17669475`，发布通道为 `next`。[2026-09-23 的原生跨平台 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)已在 Linux、macOS、Windows 的 Node.js 22/24 作业通过；这不等于 npm 已发布。下文的 npm 安装命令在完成发布和公共 registry 回读后才可用。
 >
 > 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。源码公开不代表 npm 包已经发布。
 
@@ -78,7 +78,7 @@ skillshelf disable ui-ux-pro-max --agent codex --yes
 
 可通过 `SKILLSHELF_HOME` 或 `--home` 指定独立目录。数据 home 与 Agent 扫描根不能互相包含。受管内容不应直接编辑；使用 `fork` 创建独立可编辑副本。
 
-**平台限制：** 测试工作流配置了 Linux、macOS、Windows 上的 Node.js 22/24 原生作业；配置存在不等于验收通过，实际结果见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
+**平台验证范围：** 同一组发布候选包已在 Linux、macOS、Windows 的 Node.js 22/24 原生 CI 上完成安装与核心流程验证；Windows 还验证了实际打包 CLI 的 `.cmd` 入口、私有 ACL 与中断恢复。各系统的跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
 
 ## 更新、固定版本与回滚
 

@@ -1,6 +1,6 @@
 # 参与 SkillShelf
 
-感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码目标为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文为 `0.1.0-preview.1` 发布候选编写，编写时仍在准备阶段；不要因安装命令、包名或工作流存在就声称已经发布或测试成功。
+感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文为 `0.1.0-preview.1` 发布候选编写：六组原生平台 CI 已通过，npm 包尚未发布；不要因安装命令、包名或测试通过就声称已经上架。
 
 ## 开发环境
 
@@ -25,7 +25,7 @@ npm run validate
 
 ## 完整本地验证
 
-下面是 Linux/macOS 的 POSIX shell 示例；是否通过实机验收以[公开验证记录](PUBLIC-VERIFICATION.md)为准。Windows 不适用这些 shell 与 PTY 步骤。
+下面是 Linux/macOS 的 POSIX shell 示例；原生平台验收结果以[公开验证记录](PUBLIC-VERIFICATION.md)为准。Windows 不适用这些 shell 与 PTY 步骤。
 
 ```bash
 # 新建仓库外的临时根；只使用本次输出，不覆盖任何既有发布包。
@@ -63,7 +63,7 @@ node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_t
 
 `.github/workflows/ci.yml` 是**测试工作流，不是发布工作流**：在 Linux 上生成并审计一组实际发布候选包；Linux、macOS、Windows 的 Node.js 22/24 原生作业下载同一组包，构建、运行适用测试，并从实际 CLI tarball 安装验证。Linux/macOS 另跑 POSIX PTY 测试，Windows 使用原生命令与 ACL 测试。仓库权限仅为读取，不配置发布凭据，不发布 npm 包，不创建 release。
 
-工作流定义尚不能作为成功证据；请查看[实际运行结果和跳过项](PUBLIC-VERIFICATION.md)。这些作业测试隔离目录中的核心流程，不证明每种 Agent 已原生加载技能，也不调用真实付费服务商。不要将跳过的检查标记为通过。
+[2026-09-23 的 `f6351a1` 运行](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)中，生产作业及六组原生平台作业均成功；逐平台计数和跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。这些作业测试隔离目录中的核心流程，不证明每种 Agent 已原生加载技能，也不调用真实付费服务商。不要将跳过的检查标记为通过。
 
 ## 修改边界与提交要求
 

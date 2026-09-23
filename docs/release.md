@@ -4,7 +4,7 @@
 
 首个公开预览版为 **`0.1.0-preview.1`，发布通道 `next`**。项目所有者已授权使用 npm 命名空间 `@llx17669475`，以及独立公开源码目标 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
-**本准备记录编写时尚未真正公开发布。** 授权、包名、仓库地址、打包结果和 CI 配置都不等于 registry 中已有可安装版本；只有完成实际发布和公共注册表回读，才能宣布上架。不要把准备产物称为已发布包，也不要把编写的 CI 称为已通过。后续状态以项目 README 与实际发布记录为准。
+**截至 2026-09-23，npm 尚未公开发布。** [`f6351a1` 的原生 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)已完成 Linux、macOS、Windows 的 Node.js 22/24 六组作业，且生产作业生成并审计了同一组 18 个发布候选包。检查时公共 registry 尚无这 18 个确切版本；需维护者完成 npm 官方交互认证后按下列顺序手动发布。只有完成实际发布和公共注册表回读，才能宣布上架。后续状态以项目 README 与实际发布记录为准。
 
 发布后用户安装命令：
 
@@ -82,8 +82,8 @@ npm install -g @llx17669475/skillshelf@next
 - [ ] 独立公开源码只含白名单文件，静态敏感扫描和人工审查完成；没有真密钥、内部部署配置或工作数据；维护工具的拒写路径与合法来源归属不属于凭据。
 - [ ] 最终 16 个技能包、目录包与 CLI 包均由最终源码生成，bootstrap 指向确切 artifact 字节；公共内容中没有 `localArtifact`。
 - [ ] 安装、构建、Node 测试、关键生命周期/崩溃恢复测试、PTY、实际包审计和真正 npm bin 验证已按实际环境记录结果。
-- [ ] Linux、macOS、Windows 的原生 CI 作业已实际通过 Node.js 22/24 构建、完整适用测试，并从最终 CLI tarball 安装，验证版本、目录读取、按需安装、`verify`、项目锁与受管 Agent 目录投影等核心流程；逐平台检查失败和跳过项，不能把配置存在当成通过。
-- [ ] macOS、Windows 的 ACL、链接/copy 与中断恢复在原生系统上有对应验证。仅适用于 POSIX 的 PTY/SIGKILL 用例可以在 Windows 跳过，但必须有 Windows 原生核心流程与恢复测试；各 Agent 原生加载及真实付费 provider 调用若未实测，应在预览说明中明确标注。
+- [x] [`f6351a1` 的 Linux、macOS、Windows 原生 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)通过 Node.js 22/24 构建、适用测试与同一实际 CLI tarball 的安装验证；逐平台结果和跳过项见[公开验证记录](../PUBLIC-VERIFICATION.md)。后续源码或打包内容变化须重新验证。
+- [x] 该次原生 CI 覆盖 macOS 的 POSIX 权限与链接、Windows 的私有 ACL、`.cmd` 入口与受管复制/链接，以及跨平台中断恢复。POSIX 专用终端及夹具测试在 Windows 跳过；各 Agent 原生加载及真实付费 provider 调用未实测，在预览说明中明确标注。
 - [ ] npm 账号与命名空间权限已由维护者实际核对，认证材料只存在授权环境，不进入源码、包、命令日志或截图。
 - [ ] 发布者按授权范围手动发布 16 个技能数据包 → 目录 → CLI，全部显式指定 `--access public --tag next`；没有自动发布工作流。
 - [ ] 从公共 registry 回读全部 18 个包的精确版本和 dist-tag，下载 artifact 核对 SHA-512、逐文件清单及实际 CLI 安装行为后，再更新“已发布”状态。
