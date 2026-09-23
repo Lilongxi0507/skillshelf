@@ -57,7 +57,22 @@ jobs:
           }
 
           $options = @('--home', $homePath, '--json')
-          Invoke-SkillShelf ($options + @('catalog', 'refresh', '--yes')) | Out-Null
+          try {
+            Invoke-SkillShelf ($options + @('catalog', 'refresh', '--yes')) | Out-Null
+          } catch {
+            if ($IsWindows) {
+              foreach ($candidate in @($work, (Join-Path $work 'tests'), $homePath, (Join-Path $homePath 'catalogs'))) {
+                if (Test-Path -LiteralPath $candidate -PathType Container) {
+                  $acl = Get-Acl -LiteralPath $candidate
+                  Write-Host "ACL diagnostic: $candidate owner=$($acl.Owner) protected=$($acl.AreAccessRulesProtected)"
+                  foreach ($rule in $acl.Access) {
+                    Write-Host "ACL rule: $($rule.IdentityReference) $($rule.AccessControlType) $($rule.FileSystemRights) inherited=$($rule.IsInherited)"
+                  }
+                }
+              }
+            }
+            throw
+          }
           $catalog = Invoke-SkillShelf ($options + @('list'))
           if (@($catalog.skills).Count -ne 16) { throw 'Public catalog does not contain 16 skills' }
 
