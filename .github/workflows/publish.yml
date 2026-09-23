@@ -330,13 +330,16 @@ jobs:
             const found = await publicVersion(row);
             present.push(found);
           }
-          console.log(`Preflight: ${present.filter(Boolean).length} matching versions, ${present.filter(found => !found).length} missing versions`);
+          console.log(`Preflight: ${present.filter(found => found !== false).length} existing/pending versions, ${present.filter(found => found === false).length} missing versions`);
 
           for (const [index, row] of plan.packages.entries()) {
-            if (!present[index]) {
+            if (present[index] === false) {
               const result = spawnSync('npm', ['publish', resolve(bundle, row.file), '--ignore-scripts', '--access', 'public', '--tag', 'next'], { stdio: 'inherit' });
               if (result.error || result.status !== 0) throw new Error(`npm publish failed: ${row.name}`);
             }
+            console.log(`Submitted ${index + 1}/${plan.packages.length}: ${row.name}@${row.version}`);
+          }
+          for (const [index, row] of plan.packages.entries()) {
             await verifyPublished(row);
             console.log(`Verified ${index + 1}/${plan.packages.length}: ${row.name}@${row.version}`);
           }
