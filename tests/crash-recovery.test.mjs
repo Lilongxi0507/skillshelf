@@ -287,7 +287,10 @@ test('SIGKILL recovery unlinks only the projection and preserves both linked con
   const oldHash = await fingerprint(oldTree), newHash = await fingerprint(newTree), linkHash = await fingerprint(path);
   const worker = startWorker(f, { mode: 'kill', step: 'switched', home: f.ctx.home,
     items: [{ path, expected: linkHash, kind: 'link', linkTarget: newTree }] });
-  assertExit(await worker.done, 'SIGKILL');
+  const result = await worker.done;
+  assert.deepEqual(worker.messages, [{ type: 'killing', step: 'switched', index: 0 }],
+    `worker must reach the switched crash barrier before its exit is accepted: ${result.stderr}`);
+  assertExit(result, 'SIGKILL');
   assert.equal(await realpath(path), await realpath(newTree));
   const journal = await journalFor(f.ctx);
   assert.deepEqual(await recoverTransactions(f.ctx), { recovered: [journal.id] });

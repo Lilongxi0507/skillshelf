@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, lstat, rm, symlink, open, rename } from 'node:fs/promises';
+import { mkdtemp, mkdir, chmod, writeFile, readFile, readdir, lstat, rm, symlink, open, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -73,7 +73,7 @@ test('project state permits exact recorded spec/lock hashes but rejects outside 
 
 test('ensurePrivateDir refuses changed ancestor links and leaves native permissions unchanged', posix, async (t) => {
   const { root } = await fixture(t);
-  const native = path.join(root, 'native'); await mkdir(native, { mode: 0o755 });
+  const native = path.join(root, 'native'); await mkdir(native, { mode: 0o755 }); await chmod(native, 0o755);
   await ensurePrivateDir(native); assert.equal((await lstat(native)).mode & 0o7777, 0o755);
   const outside = path.join(root, 'outside'); await mkdir(outside); const alias = path.join(root, 'alias'); await symlink(outside, alias);
   await assert.rejects(ensurePrivateDir(path.join(alias, 'new')), /链接/);
@@ -127,6 +127,39 @@ test('recovery rejects permissive substring stage/backup paths and unknown workr
   journal.operations[0].stage = path.join(workRoot, id, '0-new'); journal.operations[0].workRoot = path.resolve('untrusted-work');
   assert.throws(() => checkJournal(journal), /路径/);
   assert.throws(() => checkJournal({ ...journal, extra: true }), /日志/);
+});
+
+test('journal anchors retain exact unsigned 64-bit identities and reject rounded numbers', () => {
+  const id = randomUUID(); const target = path.resolve('fixture', 'agent', 'skills', 'one');
+  const workRoot = targetWorkRoot(path.dirname(target)); const work = path.join(workRoot, id);
+  const ancestors = (value) => { const result = []; for (let current = value; ; current = path.dirname(current)) { result.push(current); if (path.dirname(current) === current) return result; } };
+  const paths = [...new Set([...ancestors(path.dirname(target)), ...ancestors(workRoot), work])].sort();
+  const anchors = paths.map((value) => ({ path: value, dev: '18446744073709551615', ino: '9007199254740993' }));
+  const journal = { schemaVersion: 1, id, baseGeneration: 0, newGeneration: 1, phase: 'prepared', operations: [{ path: target, workRoot, stage: path.join(work, '0-new'), backup: path.join(work, '0-old'), oldHash: null, newHash: null, anchors }], createdAt: new Date().toISOString() };
+  assert.equal(checkJournal(journal).operations[0].anchors[0].ino, '9007199254740993');
+  const legacy = structuredClone(journal); legacy.operations[0].anchors = anchors.map((anchor) => ({ ...anchor, dev: 1, ino: 2 }));
+  assert.equal(checkJournal(legacy).operations[0].anchors[0].ino, 2);
+  const rounded = structuredClone(journal); rounded.operations[0].anchors[0].ino = Number.MAX_SAFE_INTEGER + 1;
+  assert.throws(() => checkJournal(rounded), /日志/);
+  for (const invalid of ['01', '-1', '18446744073709551616']) {
+    const changed = structuredClone(journal); changed.operations[0].anchors[0].ino = invalid;
+    assert.throws(() => checkJournal(changed), /日志/);
+  }
+});
+
+test('transactions persist exact filesystem identities in recovery journals', async (t) => {
+  const { root, ctx } = await fixture(t);
+  const target = path.join(root, 'agent', 'skills', 'one'); const workRoot = targetWorkRoot(path.dirname(target));
+  await transact(ctx, emptyState(), emptyState(), [{ path: target, workRoot, expected: null, prepare: (stage) => writeFile(stage, 'fixture') }]);
+  const names = (await readdir(path.join(ctx.home, 'transactions'))).filter((name) => name.endsWith('.json'));
+  assert.equal(names.length, 1);
+  const journal = JSON.parse(await readFile(path.join(ctx.home, 'transactions', names[0]), 'utf8'));
+  for (const anchor of journal.operations[0].anchors) {
+    assert.match(anchor.dev, /^(?:0|[1-9]\d*)$/);
+    assert.match(anchor.ino, /^(?:0|[1-9]\d*)$/);
+    const actual = await lstat(anchor.path, { bigint: true });
+    assert.equal(anchor.dev, actual.dev.toString()); assert.equal(anchor.ino, actual.ino.toString());
+  }
 });
 
 test('lock ordering always takes home writer first and never releases another nonce', posix, async (t) => {

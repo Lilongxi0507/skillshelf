@@ -9,13 +9,17 @@ import { withLocks } from './locks.js';
 import { fail } from '../errors.js';
 
 export interface Change { path: string; workRoot: string; expected: string | null; prepare?: (stage: string) => Promise<void> }
-interface Anchor { path: string; dev: number; ino: number }
+// New journals store exact fs identifiers as decimal strings. Safe numeric anchors
+// remain readable so interrupted journals from older versions can be recovered.
+interface Anchor { path: string; dev: string | number; ino: string | number }
 interface JournalOperation { path: string; stage: string; backup: string; workRoot: string; oldHash: string | null; newHash: string | null; anchors: Anchor[] }
 interface Journal { schemaVersion: 1; id: string; baseGeneration: number; newGeneration: number; phase: 'prepared' | 'committed' | 'recovered'; operations: JournalOperation[]; createdAt: string }
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u;
 const absolute = z.string().max(8192).refine((path) => isAbsolute(path) && resolve(path) === path && !/[\0\r\n]/u.test(path));
 const hash = z.string().max(8192).refine((value) => /^(?:file|dir):[a-f0-9]{64}$/u.test(value) || value.startsWith('link:') && !value.includes('\0')).nullable();
-const anchorSchema = z.object({ path: absolute, dev: z.number().int().nonnegative(), ino: z.number().int().nonnegative() }).strict();
+const exactFsId = z.string().refine((value) => value.length <= 20 && /^(?:0|[1-9]\d*)$/u.test(value) && BigInt(value) <= 18_446_744_073_709_551_615n);
+const fsId = z.union([exactFsId, z.number().int().nonnegative()]);
+const anchorSchema = z.object({ path: absolute, dev: fsId, ino: fsId }).strict();
 const operationSchema = z.object({ path: absolute, stage: absolute, backup: absolute, workRoot: absolute, oldHash: hash, newHash: hash, anchors: z.array(anchorSchema).min(1).max(256) }).strict();
 const journalSchema = z.object({ schemaVersion: z.literal(1), id: z.string().regex(UUID), baseGeneration: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1), newGeneration: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), phase: z.enum(['prepared', 'committed', 'recovered']), operations: z.array(operationSchema).max(10_000), createdAt: z.string().datetime() }).strict();
 
@@ -33,16 +37,16 @@ function ancestorPaths(path: string): string[] {
 async function captureAnchors(path: string, workRoot: string, work: string): Promise<Anchor[]> {
   const anchors: Anchor[] = [];
   for (const directory of [...new Set([...ancestorPaths(dirname(path)), ...ancestorPaths(workRoot), work])].sort()) {
-    await assertDirectoryChain(directory); const info = await lstat(directory);
-    anchors.push({ path: directory, dev: info.dev, ino: info.ino });
+    await assertDirectoryChain(directory); const info = await lstat(directory, { bigint: true });
+    anchors.push({ path: directory, dev: info.dev.toString(), ino: info.ino.toString() });
   }
   return anchors;
 }
 async function assertAnchors(operation: JournalOperation): Promise<void> {
   await assertDirectoryChain(dirname(operation.path)); await assertDirectoryChain(operation.workRoot); await assertDirectoryChain(dirname(operation.stage));
   for (const anchor of operation.anchors) {
-    const info = await lstat(anchor.path);
-    if (!info.isDirectory() || info.isSymbolicLink() || info.dev !== anchor.dev || info.ino !== anchor.ino) fail('RECOVERY', '事务目录身份已变化，未修改或删除任何替换目录');
+    const info = await lstat(anchor.path, { bigint: true });
+    if (!info.isDirectory() || info.isSymbolicLink() || info.dev.toString() !== String(anchor.dev) || info.ino.toString() !== String(anchor.ino)) fail('RECOVERY', '事务目录身份已变化，未修改或删除任何替换目录');
   }
 }
 export async function pendingTransactions(ctx: Context): Promise<string[]> {
@@ -138,13 +142,13 @@ export async function transact(ctx: Context, expectedState: State, nextState: St
     for (const guard of hooks.guards || []) if (await fingerprint(guard.path) !== guard.expected) fail('CONFLICT', '只读契约文件已变化');
     const id = randomUUID(); const journalPath = join(ctx.home, 'transactions', id + '.json');
     const journal: Journal = { schemaVersion: 1, id, baseGeneration: current.generation, newGeneration: current.generation + 1, phase: 'prepared', operations: [], createdAt: new Date().toISOString() };
-    const ownedWork = new Map<string, { dev: number; ino: number }>();
+    const ownedWork = new Map<string, { dev: bigint; ino: bigint }>();
     const pendingStages: string[] = [];
     try {
       for (let index = 0; index < changes.length; index++) {
         const change = changes[index]!; const work = join(change.workRoot, id);
         await ensurePrivateDir(dirname(change.path)); await assertDirectoryChain(change.workRoot);
-        if (!ownedWork.has(work)) { await mkdir(work, { mode: 0o700 }); const info = await lstat(work); ownedWork.set(work, { dev: info.dev, ino: info.ino }); }
+        if (!ownedWork.has(work)) { await mkdir(work, { mode: 0o700 }); const info = await lstat(work, { bigint: true }); ownedWork.set(work, { dev: info.dev, ino: info.ino }); }
         const stage = join(work, index + '-new'); const backup = join(work, index + '-old');
         const anchors = await captureAnchors(change.path, change.workRoot, work);
         pendingStages.push(stage); // Registered before prepare, including partially created outputs.
@@ -175,7 +179,7 @@ export async function transact(ctx: Context, expectedState: State, nextState: St
         catch { fail('RECOVERY', '操作中断且自动恢复未完成；数据已保留，请运行 repair --recover', { transaction: id }); }
       } else {
         for (const [work, identity] of ownedWork) {
-          await assertDirectoryChain(work); const info = await lstat(work);
+          await assertDirectoryChain(work); const info = await lstat(work, { bigint: true });
           if (info.dev !== identity.dev || info.ino !== identity.ino) fail('RECOVERY', '准备工作目录被替换，保留待检查');
           for (const stage of pendingStages.filter((item) => dirname(item) === work)) await removeExact(stage, await fingerprint(stage));
           // Never recursively remove an unexpected work entry.

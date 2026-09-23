@@ -220,8 +220,10 @@ async function rewriteInputPaths(args: string[], project: string): Promise<strin
 async function execute(python: PythonRuntime, entrypoint: string, args: string[], env: NodeJS.ProcessEnv, cwd: string, secrets: string[], capture: boolean): Promise<{ exitCode: number; signal: NodeJS.Signals | null; stdout?: string; stderr?: string }> {
   return new Promise((resolve, reject) => {
     // Standard-library curated entrypoints need no site packages. -B also prevents immutable-store writes.
+    // -E ignores PYTHONIOENCODING/PYTHONUTF8, so select UTF-8 explicitly for
+    // captured and relayed output even when Windows defaults to a legacy code page.
     // stdin is inherited by default. stdout/stderr relay live to inherited destinations through redaction.
-    const child = spawn(python.executable, ['-B', '-E', '-s', '-S', entrypoint, ...args], { shell: false, windowsHide: true, cwd, env, stdio: [capture ? 'ignore' : 'inherit', 'pipe', 'pipe'] });
+    const child = spawn(python.executable, ['-B', '-E', '-s', '-S', '-X', 'utf8', entrypoint, ...args], { shell: false, windowsHide: true, cwd, env, stdio: [capture ? 'ignore' : 'inherit', 'pipe', 'pipe'] });
     const stdoutRedactor = new SecretRedactor(secrets); const stderrRedactor = new SecretRedactor(secrets);
     const stdoutDecoder = new StringDecoder('utf8'); const stderrDecoder = new StringDecoder('utf8');
     let stdout = ''; let stderr = ''; let oversized = false;

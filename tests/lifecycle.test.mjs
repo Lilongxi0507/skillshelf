@@ -25,8 +25,8 @@ test('real first-party Python help works through CLI with and without one separa
   const {ctx}=await fixture(t),ids=['skillshelf-web-search','skillshelf-media-generation'];await installSkills(ctx,ids,{agents:[]});
   const cli=fileURLToPath(new URL('../packages/cli/dist/index.js',import.meta.url));
   for(const id of ids)for(const separator of [[],['--']]){
-    const result=spawnSync(process.execPath,[cli,'--home',ctx.home,'--offline','--json','run',id,...separator,'--help'],{encoding:'utf8'});
-    assert.equal(result.status,0,result.stdout+result.stderr);const data=JSON.parse(result.stdout).data;assert.equal(data.exitCode,0);assert.match(data.stdout,/usage:/);assert.equal(data.stderr,'');
+    const result=spawnSync(process.execPath,[cli,'--home',ctx.home,'--offline','--json','run',id,...separator,'--help'],{encoding:'utf8',env:{...process.env,PYTHONIOENCODING:'cp1252',PYTHONUTF8:'0'}});
+    assert.equal(result.status,0,result.stdout+result.stderr);const data=JSON.parse(result.stdout).data;assert.equal(data.exitCode,0);assert.match(data.stdout,/usage:/);assert.match(data.stdout,/本地直连/u);assert.equal(data.stderr,'');
   }
   assert.deepEqual(await readdir(join(ctx.home,'runtime')),[]);await assert.rejects(lstat(join(ctx.home,'config','providers.json')),{code:'ENOENT'});
 });
