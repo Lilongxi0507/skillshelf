@@ -192,7 +192,7 @@ jobs:
     name: Publish checked archives using npm Trusted Publishing
     needs: [package, test]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 90
     permissions:
       contents: read
       id-token: write
@@ -313,12 +313,12 @@ jobs:
           }
 
           async function verifyPublished(row) {
-            for (let attempt = 0; attempt < 12; attempt++) {
+            for (let attempt = 0; attempt < 60; attempt++) {
               if (await publicVersion(row)) {
                 const next = await getJson(metadataUrl(row.name, 'next'));
                 if (next?.version === row.version) return;
               }
-              if (attempt < 11) await sleep(5000);
+              if (attempt < 59) await sleep(5000);
             }
             throw new Error(`Public version or next tag did not appear: ${row.name}`);
           }
