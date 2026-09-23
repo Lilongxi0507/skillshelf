@@ -282,7 +282,7 @@ jobs:
             if (!expectedName.test(row.name) || names.has(row.name) || row.version !== version ||
                 row.tag !== 'next' || row.access !== 'public' || row.repository !== plan.repository ||
                 !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(row.integrity) ||
-                typeof row.file !== 'string' || !/^(?:artifacts\/)?[a-z0-9-]+\.tgz$/.test(row.file)) {
+                typeof row.file !== 'string' || !/^(?:artifacts\/)?[a-z0-9-]+-[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+\.tgz$/.test(row.file)) {
               throw new Error(`Invalid publication row ${index + 1}`);
             }
             names.add(row.name);
