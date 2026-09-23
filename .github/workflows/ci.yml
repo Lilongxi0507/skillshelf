@@ -36,10 +36,10 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module -e '
-            import { appendFileSync, mkdtempSync } from "node:fs";
+            import { appendFileSync, mkdtempSync, realpathSync } from "node:fs";
             import { tmpdir } from "node:os";
             import { join } from "node:path";
-            const work = mkdtempSync(join(tmpdir(), "skillshelf-ci-"));
+            const work = realpathSync(mkdtempSync(join(tmpdir(), "skillshelf-ci-")));
             appendFileSync(process.env.GITHUB_ENV, `SKILLSHELF_CI_TMP=${work}\nSKILLSHELF_TEST_CATALOG=${join(work, "packages", "catalog.development.json")}\nNPM_CONFIG_CACHE=${join(work, "npm-cache")}\n`);
             appendFileSync(process.env.GITHUB_OUTPUT, `work=${work}\n`);
           '
@@ -113,10 +113,10 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module -e '
-            import { appendFileSync, mkdirSync, mkdtempSync } from "node:fs";
+            import { appendFileSync, mkdirSync, mkdtempSync, realpathSync } from "node:fs";
             import { tmpdir } from "node:os";
             import { join } from "node:path";
-            const work = mkdtempSync(join(tmpdir(), "skillshelf-ci-"));
+            const work = realpathSync(mkdtempSync(join(tmpdir(), "skillshelf-ci-")));
             const tests = join(work, "tests");
             mkdirSync(tests, { mode: 0o700 });
             const python = join(process.env.pythonLocation, process.platform === "win32" ? "python.exe" : "bin/python3");
