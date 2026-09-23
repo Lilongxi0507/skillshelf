@@ -185,9 +185,19 @@ jobs:
             TMP: temporary,
             USERPROFILE: temporary,
           };
+          const standard = { ...controlled };
+          for (const name of [
+            'APPDATA', 'LOCALAPPDATA', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432',
+            'ProgramData', 'ALLUSERSPROFILE', 'CommonProgramFiles', 'CommonProgramFiles(x86)',
+            'USERPROFILE', 'TEMP', 'TMP',
+          ]) {
+            const value = process.env[name];
+            if (value && path.win32.isAbsolute(value) && !/[\0\r\n]/u.test(value)) standard[name] = value;
+          }
+          if (/^[A-Za-z]:$/u.test(process.env.SystemDrive ?? '')) standard.SystemDrive = process.env.SystemDrive;
           const full = { ...process.env, SKILLSHELF_ACL_PATH: target };
           const scripts = {
-            static: "[Console]::WriteLine('1')",
+            dotnet: "$ErrorActionPreference='Stop'; $p=$env:SKILLSHELF_ACL_PATH; if ([System.IO.Directory]::Exists($p)) { $a=[System.IO.Directory]::GetAccessControl($p) } elseif ([System.IO.File]::Exists($p)) { $a=[System.IO.File]::GetAccessControl($p) } else { exit 2 }; $s=[System.Security.Principal.SecurityIdentifier]; $owner=$a.GetOwner($s); $rules=$a.GetAccessRules($true,$true,$s); $protected=$a.AreAccessRulesProtected; if ($null -eq $owner -or $null -eq $rules -or $null -eq $protected) { exit 3 }; [Console]::WriteLine('1')",
             json: '@{ok=$true}|ConvertTo-Json -Compress',
             acl: WINDOWS_ACL_INSPECTION_SCRIPT,
           };
@@ -221,12 +231,17 @@ jobs:
               complete({ status: timedOut ? 'timeout' : outputLimit ? 'output-limit' : 'closed', code: code ?? -1, timedOut, stdoutBytes, stderrBytes, jsonParseable });
             });
           });
-          for (const [environment, env] of [['sparse', sparse], ['controlled', controlled], ['full', full]]) {
-            for (const [kind, script] of Object.entries(scripts)) {
-              const started = Date.now();
-              const result = await inspect(script, env);
-              console.log(JSON.stringify({ probe: `${kind}-${environment}`, ...result, elapsedMs: Date.now() - started }));
-            }
+          for (const [name, script, env] of [
+            ['dotnet-sparse', scripts.dotnet, sparse],
+            ['dotnet-controlled', scripts.dotnet, controlled],
+            ['dotnet-standard', scripts.dotnet, standard],
+            ['dotnet-full', scripts.dotnet, full],
+            ['json-standard', scripts.json, standard],
+            ['acl-standard', scripts.acl, standard],
+          ]) {
+            const started = Date.now();
+            const result = await inspect(script, env);
+            console.log(JSON.stringify({ probe: name, ...result, elapsedMs: Date.now() - started }));
           }
           console.log(JSON.stringify({ probe: 'diagnostic-only-stop', status: 'intentional' }));
           process.exitCode = 1;
