@@ -4,9 +4,9 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **本地候选尚未发布。** 当前候选为 `0.2.0-preview.1`，npm 命名空间为 `@llx17669475`，计划使用 `next` 通道，包含 8 个完整技能包、1 个目录包和 1 个 CLI 包，共 10 个 npm 包。历史公开版本和旧 CI 不代表本候选已发布或已完成跨平台验收；下文的 npm 安装命令只有在本候选正式发布并完成公共 registry 回读后，才能用于获取本候选。
+> **本候选发布尚未完成。** `0.2.0-preview.1` 包含 8 个完整技能包、目录和 CLI，共 10 个 npm 包。三平台 Node 22/24 CI 已通过；其中 7 个技能包已发布并核对公共下载摘要。GitNexus 首次发布受到 npm `429` 限流，目录和 CLI 尚未发布新版本，公共 CLI 的 `next` 仍为 `0.1.0-preview.2`。完成余下发布与公共安装测试前，不将本候选标为已交付。
 >
-> 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。源码公开不代表 npm 包已经发布。
+> 发布进度与实际验证范围见 [公开验证记录](PUBLIC-VERIFICATION.md)。独立公开源码：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
 ## 为什么使用 SkillShelf
 
@@ -86,7 +86,7 @@ skillshelf disable ui-ux-pro-max --agent codex --yes
 
 可通过 `SKILLSHELF_HOME` 或 `--home` 指定独立目录。数据 home 与 Agent 扫描根不能互相包含。受管内容不应直接编辑；使用 `fork` 创建独立可编辑副本。
 
-**平台验证范围：** 当前候选已完成 Linux Node 24 隔离回归（160 通过、2 跳过）和 40/80/120 列 PTY 冒烟；Windows、macOS 及部分 Agent 原生加载仍待实测。目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
+**平台验证范围：** 同一候选已通过 Linux、macOS、Windows 的 Node 22/24 原生 CI。Linux/macOS 每组 161 通过、1 跳过，另有 40/80/120 列 PTY 测试；Windows 每组 125 通过、37 个平台相关跳过，包含原生 CLI 安装、ACL 与核心生命周期测试。Windows 交互终端宽度矩阵、全部 Agent 原生加载及真实外部 MCP 会话仍未完成。目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
 
 ## 更新、固定版本与回滚
 

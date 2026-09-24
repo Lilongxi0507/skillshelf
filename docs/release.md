@@ -2,9 +2,9 @@
 
 ## 当前状态
 
-当前本地发布候选为 **`0.2.0-preview.1`，计划发布通道 `next`**，包含 8 个完整技能包、1 个目录包和 1 个 CLI 包，共 10 个 npm 包。项目所有者已授权使用 npm 命名空间 `@llx17669475`，以及独立公开源码目标 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本次收录不代表已经授权发布。
+当前本地发布候选为 **`0.2.0-preview.1`，计划发布通道 `next`**，包含 8 个完整技能包、1 个目录包和 1 个 CLI 包，共 10 个 npm 包。项目所有者已授权使用 npm 命名空间 `@llx17669475`，以及独立公开源码目标 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本次候选已获得维护者发布授权；进度见 [公开验证记录](../PUBLIC-VERIFICATION.md)，目前尚未完成发布。
 
-**版本边界：** 历史 CI 与发布记录只覆盖旧候选，不能沿用为本候选验收证据。当前 `0.2.0-preview.1` 已完成 Linux Node 24 隔离回归、PTY 和本地 tarball 审计；Windows/macOS、完整原生 Agent 加载和真实 MCP 会话仍需在发布前补齐。发布后还要从公共注册表回读全部 10 个确切包、标签和摘要。
+**版本边界：** 历史 CI 与发布记录只覆盖旧候选，不能沿用为本候选验收证据。当前 `0.2.0-preview.1` 已完成 Linux/macOS/Windows × Node 22/24 六组 CI、Linux/macOS PTY 和真实 tarball 安装审计。完整原生 Agent 加载、Windows 交互终端矩阵与外部 MCP 会话仍未完成，不列为已验证能力。发布后还要从公共注册表回读全部 10 个确切包、标签和摘要。
 
 发布后用户安装命令：
 
@@ -82,7 +82,7 @@ npm install -g @llx17669475/skillshelf@next
 - [ ] 独立公开源码只含白名单文件，静态敏感扫描和人工审查完成；没有真密钥、内部部署配置或工作数据；维护工具的拒写路径与合法来源归属不属于凭据。
 - [ ] 最终 8 个完整技能包、目录包与 CLI 包均由最终源码生成，bootstrap 指向确切 artifact 字节；公共内容中没有 `localArtifact`。
 - [ ] 安装、构建、Node 测试、关键生命周期/崩溃恢复测试、PTY、实际包审计和真正 npm bin 验证已按实际环境记录结果。
-- [ ] 针对 `0.2.0-preview.1` 的 Linux、macOS、Windows 原生 CI 和安装验收；历史 [`preview.1` 记录](../PUBLIC-VERIFICATION.md)不能替代本候选验证。Linux 隔离回归、PTY 与本地 tarball 已有记录，其他平台仍待执行。
+- [ ] 针对 `0.2.0-preview.1` 的 Linux、macOS、Windows 原生 CI 和安装验收；历史 [`preview.1` 记录](../PUBLIC-VERIFICATION.md)不能替代本候选验证。六组原生 CI 与同一批真实 tarball 验证已通过，计数与跳过项见公开验证记录。
 - [ ] 针对新增技能的目标 Agent 发现、跨技能引用及外部 CLI/MCP 前提分别验证；未验证的运行模式不得标成已通过。
 - [ ] npm 账号与命名空间权限已由维护者实际核对，认证材料只存在授权环境，不进入源码、包、命令日志或截图。
 - [ ] 发布者取得本候选发布授权后，手动发布 8 个技能包 → 目录 → CLI，全部显式指定 `--access public --tag next`；没有自动发布工作流。
