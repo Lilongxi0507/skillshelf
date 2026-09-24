@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { Context, MutationOptions, OperationResult } from './types.js';
 import { ensurePrivateDir, exists, readJson, writeJson } from './store/fs.js';
 import { installSkills, toggleSkills } from './manager.js';
+import { initHome } from './store/state.js';
 import { fail } from './errors.js';
 
 export interface TaskProfile { id: string; name: string; description?: string; packs: string[]; members?: Record<string, string[]>; mcps?: string[]; createdAt: string; updatedAt: string }
@@ -15,7 +16,7 @@ async function readProfiles(ctx: Context): Promise<ProfileFile> {
   if (!value || typeof value !== 'object' || (value as { schemaVersion?: unknown }).schemaVersion !== 1 || typeof (value as { profiles?: unknown }).profiles !== 'object') fail('INTEGRITY', '任务组合文件格式无效');
   return value as ProfileFile;
 }
-async function saveProfiles(ctx: Context, value: ProfileFile): Promise<void> { await ensurePrivateDir(join(ctx.home, 'config')); await writeJson(await path(ctx), value); }
+async function saveProfiles(ctx: Context, value: ProfileFile): Promise<void> { await initHome(ctx); await writeJson(await path(ctx), value); }
 
 export async function listProfiles(ctx: Context): Promise<OperationResult> { return { profiles: Object.values((await readProfiles(ctx)).profiles) }; }
 export async function getProfile(ctx: Context, id: string): Promise<TaskProfile> { const profile = (await readProfiles(ctx)).profiles[checkId(id)]; if (!profile) fail('USAGE', '任务组合不存在：' + id); return profile; }

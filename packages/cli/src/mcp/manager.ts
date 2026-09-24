@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Context, OperationResult } from '../types.js';
 import { ensurePrivateDir, exists, readJson, writeJson } from '../store/fs.js';
+import { initHome } from '../store/state.js';
 import { fail } from '../errors.js';
 
 export type McpTransport = 'stdio' | 'http';
@@ -16,7 +17,7 @@ async function readFile(ctx: Context): Promise<McpFile> {
   if (!value || typeof value !== 'object' || (value as { schemaVersion?: unknown }).schemaVersion !== 1 || typeof (value as { definitions?: unknown }).definitions !== 'object') fail('INTEGRITY', 'MCP 定义文件格式无效');
   return value as McpFile;
 }
-async function saveFile(ctx: Context, value: McpFile): Promise<void> { await ensurePrivateDir(join(ctx.home, 'config')); await writeJson(await filePath(ctx), value); }
+async function saveFile(ctx: Context, value: McpFile): Promise<void> { await initHome(ctx); await writeJson(await filePath(ctx), value); }
 function redacted(definition: McpDefinition): OperationResult { return { ...definition, env: definition.env ? Object.fromEntries(Object.keys(definition.env).map(key => [key, '<env-ref>'])) : undefined }; }
 
 export async function listMcp(ctx: Context): Promise<OperationResult> { return { definitions: Object.values((await readFile(ctx)).definitions).map(redacted) }; }

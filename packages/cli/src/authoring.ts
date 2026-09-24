@@ -4,6 +4,7 @@ import type { Context, PackMember, RuntimeDeclaration, SkillManifest, OperationR
 import { ensurePrivateDir, exists, readJson, writeJson, within } from './store/fs.js';
 import { digestPackManifest, inventory, validateManifest, validateSkillDocument, verifyTree } from './validation.js';
 import { importValidatedPack } from './manager.js';
+import { initHome } from './store/state.js';
 import { fail } from './errors.js';
 
 export interface DraftMemberInput { id: string; name?: string; title?: string; description?: string; category?: string; subcategory?: string; tags?: string[]; path?: string }
@@ -23,6 +24,7 @@ export async function createDraft(ctx: Context, id: string, options: { descripti
   const root = await draftRoot(ctx, id); if (await exists(root)) fail('CONFLICT', '草稿已存在：' + id);
   const members = options.members?.length ? options.members : [{ id, name: id, description: options.description }];
   const packMembers = members.map(input => member(input, id));
+  await initHome(ctx);
   await ensurePrivateDir(root);
   for (const item of packMembers) {
     const directory = join(root, item.path);

@@ -11,6 +11,7 @@ import { uninstallSkillShelf } from '../packages/cli/dist/commands/maintenance.j
 import { loadState } from '../packages/cli/dist/store/state.js';
 import { storePath } from '../packages/cli/dist/store/state.js';
 import { chmodTree } from '../packages/cli/dist/store/local.js';
+import { assertPrivatePath } from '../packages/cli/dist/runtime/privacy.js';
 import { cp } from 'node:fs/promises';
 
 async function fixture(t) {
@@ -45,6 +46,8 @@ test('local authoring creates, validates, publishes and removes a complete pack 
   const { ctx } = await fixture(t);
   const created = await createDraft(ctx, 'local-design', { members: [{ id: 'one', description: 'one' }, { id: 'two', description: 'two' }] });
   assert.equal(created.members.length, 2);
+  await assertPrivatePath(ctx.home, true);
+  await assertPrivatePath(join(ctx.home, 'config'), true);
   assert.equal((await validateDraft(ctx, 'local-design')).valid, true);
   const published = await publishDraft(ctx, 'local-design', { version: '0.1.0-local.1', yes: true });
   assert.equal(published.id, 'local-design');
@@ -71,6 +74,8 @@ test('dedupe preview matches a complete member tree and replaces it through a sh
 test('profiles persist local task combinations without duplicating content', async t => {
   const { ctx } = await fixture(t);
   await saveProfile(ctx, { id: 'frontend', name: '前端开发', packs: ['taste'], members: { taste: ['image-to-code'] }, mcps: ['docs'] });
+  await assertPrivatePath(ctx.home, true);
+  await assertPrivatePath(join(ctx.home, 'config'), true);
   assert.equal((await getProfile(ctx, 'frontend')).packs[0], 'taste');
   assert.equal((await listProfiles(ctx)).profiles.length, 1);
   assert.equal((await removeProfile(ctx, 'frontend')).removed, true);
@@ -79,6 +84,8 @@ test('profiles persist local task combinations without duplicating content', asy
 test('MCP definitions are centralized, redacted and diagnosed without network calls', async t => {
   const { ctx } = await fixture(t);
   await addMcp(ctx, { id: 'docs', transport: 'stdio', command: 'docs-mcp', env: { token: 'DOCS_TOKEN' } });
+  await assertPrivatePath(ctx.home, true);
+  await assertPrivatePath(join(ctx.home, 'config'), true);
   const listed = await listMcp(ctx);
   assert.equal(listed.definitions[0].env.token, '<env-ref>');
   const diagnosed = await diagnoseMcp(ctx, 'docs');
