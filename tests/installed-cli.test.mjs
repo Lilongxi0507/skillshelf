@@ -131,7 +131,7 @@ test('actual packed CLI installs into a private prefix and its native command in
   const updatedOptions = ['--home', home, '--catalog', updatedCatalog, '--offline', '--json'];
   completed(installedCommand(bin, [...updatedOptions, 'update', 'brandkit', '--yes'], root), 'installed CLI update');
   let status = JSON.parse(completed(installedCommand(bin, [...updatedOptions, 'status'], root), 'status after update')).data;
-  assert.equal(status.installed.find(item => item.id === 'brandkit').version, '0.2.0');
+  assert.equal(status.installed.find(item => item.id === 'brandkit').version, '0.3.0');
   assert.ok((await readFile(path.join(projected, 'SKILL.md'), 'utf8')).includes('Updated brandkit'));
   completed(installedCommand(bin, [...updatedOptions, 'rollback', 'brandkit', '--yes'], root), 'installed CLI rollback');
   status = JSON.parse(completed(installedCommand(bin, [...updatedOptions, 'status'], root), 'status after rollback')).data;

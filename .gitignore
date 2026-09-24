@@ -13,3 +13,7 @@ __pycache__/
 # Reviewed, pinned upstream CSV/JSON files are complete skill source assets.
 !skills/ui-ux-pro-max/skill/data/
 !skills/ui-ux-pro-max/skill/data/**
+
+# Local code graph and release evidence
+.gitnexus/
+.local-release/
