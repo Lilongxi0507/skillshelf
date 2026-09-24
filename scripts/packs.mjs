@@ -3,6 +3,20 @@ import { createHash } from 'node:crypto';
 import { categories, curatedMetadata } from '../catalog/curation.mjs';
 import { skillRootFor, sourceFor, sourceAttribution, runtimeFor, licenseFor, readRegularFile } from './lib.mjs';
 
+const REVIEWED_EXECUTABLES = new Set([
+  'archify/bin/archify.mjs',
+  'skills/brainstorming/scripts/start-server.sh',
+  'skills/brainstorming/scripts/stop-server.sh',
+  'skills/executing-plans/scripts/task-done',
+  'skills/executing-plans/scripts/task-start',
+  'skills/subagent-driven-development/scripts/review-package',
+  'skills/subagent-driven-development/scripts/sdd-workspace',
+  'skills/subagent-driven-development/scripts/task-brief',
+  'skills/systematic-debugging/find-polluter.sh',
+  'skills/writing-skills/render-graphs.js',
+  'skills/misc/git-guardrails-claude-code/scripts/block-dangerous-git.sh',
+]);
+
 export function packDefinitions(config) {
   const groups=new Map();
   for(const definition of config.skills){const id=definition.source==='first-party'?definition.name:({matt:'matt-pocock',uiux:'ui-ux-pro-max'}[definition.source]||definition.source);if(!groups.has(id))groups.set(id,[]);groups.get(id).push(definition);}
@@ -18,7 +32,7 @@ export async function packContents(config,pack,api) {
     api.validateSkillDocument(await readRegularFile(path.join(root,'SKILL.md')),definition.name);
     const member={id:definition.name,name:definition.name,legacyId:definition.name,path:definition.path,title:definition.title,...curatedMetadata(definition.name),tags:definition.tags,license:licenseFor(definition),source:sourceFor(config,definition),runtime:runtimeFor(definition.name)};
     members.push(member);
-    for(const file of files)contents.push({path:member.path+'/'+file.path,data:await readRegularFile(path.join(root,file.path)),executable:file.executable});
+    for(const file of files){const relative=member.path+'/'+file.path;contents.push({path:relative,data:await readRegularFile(path.join(root,file.path)),executable:process.platform==='win32'?REVIEWED_EXECUTABLES.has(relative):file.executable});}
   }
   const first=pack.definitions[0],license=await readRegularFile(path.join(skillRootFor(first),'LICENSE'));
   const notices=await Promise.all(pack.definitions.map(definition=>sourceAttribution(config,definition)));
