@@ -1,6 +1,6 @@
 {
   "name": "@llx17669475/skillshelf",
-  "version": "0.2.0-preview.1",
+  "version": "0.2.0",
   "description": "个人精选、本机共享的完整 Agent 技能库",
   "type": "module",
   "license": "MIT",
@@ -19,7 +19,7 @@
     "./mcp": "./dist/mcp/manager.js"
   },
   "files": ["dist/", "README.md", "LICENSE"],
-  "publishConfig": { "access": "public", "tag": "next" },
+  "publishConfig": { "access": "public", "tag": "latest" },
   "repository": { "type": "git", "url": "https://github.com/Lilongxi0507/skillshelf.git", "directory": "packages/cli" },
   "homepage": "https://github.com/Lilongxi0507/skillshelf#readme",
   "bugs": { "url": "https://github.com/Lilongxi0507/skillshelf/issues" },

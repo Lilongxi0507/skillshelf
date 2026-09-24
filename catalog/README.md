@@ -2,7 +2,7 @@
 
 ## 发布状态
 
-本目录对应尚未发布的 10 包 `0.2.0-preview.1` 本地候选，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。历史发布与标签记录不代表本候选；公共注册表和跨平台验证仍须针对新候选重新核对。现有[公开验证记录](../PUBLIC-VERIFICATION.md)只覆盖历史 `preview.1` CI。
+本目录对应尚未发布的 10 包 `0.2.0` 本地候选，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。历史发布与标签记录不代表本候选；公共注册表和跨平台验证仍须针对新候选重新核对。现有[公开验证记录](../PUBLIC-VERIFICATION.md)只覆盖历史 `preview.1` CI。
 
 当前候选由 10 个包组成：
 
@@ -34,7 +34,7 @@ schema 2 将 Taste 13、Matt Pocock 38、Superpowers 15、GitNexus 13 以及四�
 
 `bootstrap.json` 中的确切版本、SHA-512 SRI、逐文件数目、大小与内容摘要由**真实生成的 tarball**计算和验证，不只依赖 npm packlist。重打 tarball、修改包元数据或 NOTICE 都可能改变 SRI；发布时应使用审查过的确切 artifact，发布后再下载核对。
 
-目录刷新和在线检查使用 `next` 获取预览目录；技能下载使用目录或可信项目锁中的确切版本，不跟随技能标签漂移。`check` 只读比较，不写目录缓存或更新技能；`catalog refresh` 更新元数据，不会安装技能。
+目录刷新和在线检查使用 `latest` 获取预览目录；技能下载使用目录或可信项目锁中的确切版本，不跟随技能标签漂移。`check` 只读比较，不写目录缓存或更新技能；`catalog refresh` 更新元数据，不会安装技能。
 
 技能与目录只从固定 HTTPS npm registry 获取，不使用重定向、认证信息或任意自定义镜像。内容包是 data-only：不会运行 npm、生命周期 hooks 或技能脚本，不安装技能依赖，也不会从源代码仓库动态补文件。
 

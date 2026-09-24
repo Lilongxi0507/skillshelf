@@ -1,6 +1,6 @@
 # 参与 SkillShelf
 
-感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 10 包 `0.2.0-preview.1` 候选（8 个完整技能套件、目录和 CLI）。当前候选的三平台 Node 22/24 CI 已通过；发布进度和验证范围以 [PUBLIC-VERIFICATION.md](PUBLIC-VERIFICATION.md) 为准。
+感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 10 包 `0.2.0` 候选（8 个完整技能套件、目录和 CLI）。当前候选的三平台 Node 22/24 CI 已通过；发布进度和验证范围以 [PUBLIC-VERIFICATION.md](PUBLIC-VERIFICATION.md) 为准。
 
 ## 开发环境
 
@@ -42,7 +42,7 @@ npm test
 python3 tests/terminal-smoke.py --cli packages/cli/dist/index.js --catalog "$SKILLSHELF_TEST_CATALOG" --tmp "$SKILLSHELF_TEST_TMP"
 
 npm pack --workspace packages/cli --ignore-scripts --pack-destination "$work/packages"
-cli_tarball="$work/packages/llx17669475-skillshelf-0.2.0-preview.1.tgz"
+cli_tarball="$work/packages/llx17669475-skillshelf-0.2.0.tgz"
 node scripts/audit-cli-package.mjs "$cli_tarball"
 node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_tarball"
 ```
@@ -81,4 +81,4 @@ node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_t
 
 一般问题请提供版本、平台、最小合成复现和脱敏错误信息。安全问题按[安全报告说明](docs/security.md#报告安全问题)私密提交，不上传完整 home 或环境转储。
 
-预览发布由维护者根据[发布门禁](docs/release.md)单独处理，共 10 个包（8 个完整技能套件、目录和 CLI），使用 `next`。普通 PR、CI 成功或生成 publication plan 不授予发布权限。测试工作流不能被改成自动发布来绕过人工审查。GitNexus 的 PolyForm Noncommercial 许可和 Archify 的品牌素材许可必须在逐包发布前再次核对。
+预览发布由维护者根据[发布门禁](docs/release.md)单独处理，共 10 个包（8 个完整技能套件、目录和 CLI），使用 `latest`。普通 PR、CI 成功或生成 publication plan 不授予发布权限。测试工作流不能被改成自动发布来绕过人工审查。GitNexus 的 PolyForm Noncommercial 许可和 Archify 的品牌素材许可必须在逐包发布前再次核对。

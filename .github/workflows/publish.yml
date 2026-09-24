@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact preview version from the reviewed source
+        description: Exact stable version from the reviewed source
         required: true
         type: string
 
@@ -31,7 +31,7 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = 'Lilongxi0507/skillshelf'
           test "$GITHUB_REF" = 'refs/heads/main'
-          [[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]
+          [[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 
       - name: Check out standalone source
         uses: actions/checkout@v4
@@ -269,9 +269,9 @@ jobs:
           const integrity = bytes => 'sha512-' + createHash('sha512').update(bytes).digest('base64');
           const metadataUrl = (name, selector) => `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(selector)}`;
 
-          if (!/^\d+\.\d+\.\d+-preview\.\d+$/.test(version) ||
+          if (!/^\d+\.\d+\.\d+$/.test(version) ||
               plan.schemaVersion !== 1 || plan.complete !== true || plan.published !== false ||
-              plan.scope !== '@llx17669475' || plan.version !== version || plan.tag !== 'next' ||
+              plan.scope !== '@llx17669475' || plan.version !== version || plan.tag !== 'latest' ||
               plan.access !== 'public' || plan.repository !== 'https://github.com/Lilongxi0507/skillshelf.git' ||
               plan.packages?.length !== 10) throw new Error('Unexpected publication plan');
 
@@ -280,9 +280,9 @@ jobs:
             const expectedName = index < 8 ? /^@llx17669475\/skillshelf-pack-[a-z0-9]+(?:-[a-z0-9]+)*$/ :
               index === 8 ? /^@llx17669475\/skillshelf-catalog$/ : /^@llx17669475\/skillshelf$/;
             if (!expectedName.test(row.name) || names.has(row.name) || row.version !== version ||
-                row.tag !== 'next' || row.access !== 'public' || row.repository !== plan.repository ||
+                row.tag !== 'latest' || row.access !== 'public' || row.repository !== plan.repository ||
                 !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(row.integrity) ||
-                typeof row.file !== 'string' || !/^(?:artifacts\/)?[a-z0-9-]+-[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+\.tgz$/.test(row.file)) {
+                typeof row.file !== 'string' || !/^(?:artifacts\/)?[a-z0-9-]+-[0-9]+\.[0-9]+\.[0-9]+\.tgz$/.test(row.file)) {
               throw new Error(`Invalid publication row ${index + 1}`);
             }
             names.add(row.name);
@@ -317,7 +317,7 @@ jobs:
           async function verifyPublished(row) {
             for (let attempt = 0; attempt < 60; attempt++) {
               if (await publicVersion(row)) {
-                const next = await getJson(metadataUrl(row.name, 'next'));
+                const next = await getJson(metadataUrl(row.name, 'latest'));
                 if (next?.version === row.version) return;
               }
               if (attempt < 59) await sleep(5000);
@@ -334,7 +334,7 @@ jobs:
 
           for (const [index, row] of plan.packages.entries()) {
             if (present[index] === false) {
-              const result = spawnSync('npm', ['publish', resolve(bundle, row.file), '--ignore-scripts', '--access', 'public', '--tag', 'next'], { stdio: 'inherit' });
+              const result = spawnSync('npm', ['publish', resolve(bundle, row.file), '--ignore-scripts', '--access', 'public', '--tag', 'latest'], { stdio: 'inherit' });
               if (result.error || result.status !== 0) throw new Error(`npm publish failed: ${row.name}`);
             }
             console.log(`Submitted ${index + 1}/${plan.packages.length}: ${row.name}@${row.version}`);
@@ -349,6 +349,6 @@ jobs:
         run: |
           set -euo pipefail
           prefix="$SKILLSHELF_CI_TMP/public-prefix"
-          npm install --global '@llx17669475/skillshelf@next' --prefix "$prefix" --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm install --global '@llx17669475/skillshelf@latest' --prefix "$prefix" --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
           test -f "$prefix/bin/skillshelf"
           test "$("$prefix/bin/skillshelf" --version)" = "$EXPECTED_VERSION"

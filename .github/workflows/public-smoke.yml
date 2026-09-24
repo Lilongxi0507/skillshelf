@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       expected_version:
-        description: Exact version expected from the next tag
+        description: Exact version expected from the latest tag
         required: true
-        default: 0.2.0-preview.1
+        default: 0.2.0
 
 permissions:
   contents: read
@@ -40,7 +40,7 @@ jobs:
           $env:NPM_CONFIG_CACHE = Join-Path $work 'npm-cache'
           $env:NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org/'
           $npm = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
-          & $npm install --global '@llx17669475/skillshelf@next' --prefix $prefix --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
+          & $npm install --global '@llx17669475/skillshelf@latest' --prefix $prefix --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
           if ($LASTEXITCODE -ne 0) { throw 'Public npm CLI installation failed' }
 
           $bin = if ($IsWindows) { Join-Path $prefix 'skillshelf.cmd' } else { Join-Path $prefix 'bin/skillshelf' }

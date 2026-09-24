@@ -50,7 +50,7 @@ test('lifecycle, dependencies, extra/missing files and content substitution fail
 test('data-only packages accept reviewed public metadata and reject registry/source overrides', () => {
   const metadata = { repository: { type: 'git', url: REPOSITORY_URL }, homepage: PROJECT_URL+'#readme', bugs: { url: PROJECT_URL+'/issues' }, publishConfig: { access:'public', tag:RELEASE_CHANNEL } };
   const good=fixture(undefined,metadata); verifySkillArchive(good.bytes,good.entry);
-  for(const bad of [{repository:{type:'git',url:'https://example.com/other.git'}},{homepage:'https://example.com/'},{bugs:{url:PROJECT_URL+'/issues',email:'unused@example.com'}},{publishConfig:{access:'public',tag:'latest'}},{publishConfig:{access:'public',tag:RELEASE_CHANNEL,registry:'https://example.com'}}]){
+  for(const bad of [{repository:{type:'git',url:'https://example.com/other.git'}},{homepage:'https://example.com/'},{bugs:{url:PROJECT_URL+'/issues',email:'unused@example.com'}},{publishConfig:{access:'public',tag:'beta'}},{publishConfig:{access:'public',tag:RELEASE_CHANNEL,registry:'https://example.com'}}]){
     const item=fixture(undefined,{...metadata,...bad});assert.throws(()=>verifySkillArchive(item.bytes,item.entry),/untrusted/);
   }
 });
@@ -104,18 +104,18 @@ test('npm source is fixed and no project lock can authorize arbitrary scope/loca
   await assert.rejects(acquireLockedSkill({ home: root, offline: true }, { ...entry, packageName: '@evil/fixture' }));
   await assert.rejects(acquireLockedSkill({ home: root, offline: true }, { ...entry, localArtifact: 'fixture.tgz' }), /cannot authorize/);
 });
-test('only CLI and catalog may resolve the fixed next channel, never arbitrary tags or foreign scopes', async t => {
-  assert.equal(NPM_SCOPE,'@llx17669475');assert.equal(RELEASE_CHANNEL,'next');
-  const original=globalThis.fetch;let calls=0;globalThis.fetch=async(url)=>{calls++;const name=decodeURIComponent(new URL(url).pathname.split('/')[1]);assert.ok([CATALOG_PACKAGE,CLI_PACKAGE].includes(name));assert.ok(String(url).endsWith('/next'));return new Response(JSON.stringify({name,version:CLI_VERSION,dist:{integrity:sri(Buffer.from('fixture')),tarball:`https://registry.npmjs.org/${name}/-/${name.split('/')[1]}-${CLI_VERSION}.tgz`}}));};t.after(()=>{globalThis.fetch=original;});
-  for(const name of [CATALOG_PACKAGE,CLI_PACKAGE])assert.equal((await resolveNpmRelease(name,'next',true)).version,CLI_VERSION);
-  for(const [name,version,allow] of [[CLI_PACKAGE,'latest',true],[CATALOG_PACKAGE,'beta',true],[CLI_PACKAGE,'next',false],[NPM_SCOPE+'/skillshelf-skill-brandkit','next',true],['@skillshelf-local/skillshelf','next',true]])await assert.rejects(resolveNpmRelease(name,version,allow));
+test('only CLI and catalog may resolve the fixed stable channel, never arbitrary tags or foreign scopes', async t => {
+  assert.equal(NPM_SCOPE,'@llx17669475');assert.equal(RELEASE_CHANNEL,'latest');
+  const original=globalThis.fetch;let calls=0;globalThis.fetch=async(url)=>{calls++;const name=decodeURIComponent(new URL(url).pathname.split('/')[1]);assert.ok([CATALOG_PACKAGE,CLI_PACKAGE].includes(name));assert.ok(String(url).endsWith('/latest'));return new Response(JSON.stringify({name,version:CLI_VERSION,dist:{integrity:sri(Buffer.from('fixture')),tarball:`https://registry.npmjs.org/${name}/-/${name.split('/')[1]}-${CLI_VERSION}.tgz`}}));};t.after(()=>{globalThis.fetch=original;});
+  for(const name of [CATALOG_PACKAGE,CLI_PACKAGE])assert.equal((await resolveNpmRelease(name,'latest',true)).version,CLI_VERSION);
+  for(const [name,version,allow] of [[CLI_PACKAGE,'next',true],[CATALOG_PACKAGE,'beta',true],[CLI_PACKAGE,'latest',false],[NPM_SCOPE+'/skillshelf-skill-brandkit','latest',true],['@skillshelf-local/skillshelf','latest',true]])await assert.rejects(resolveNpmRelease(name,version,allow));
   assert.equal(calls,2);
 });
-test('self-update checks next and never writes local state or marks the real scope unpublished', async t => {
+test('self-update checks latest and never writes local state or marks the real scope unpublished', async t => {
   const root=await scratch(t),home=path.join(root,'missing-home'),original=globalThis.fetch,log=console.log,output=[];
-  globalThis.fetch=async url=>{assert.equal(String(url),`https://registry.npmjs.org/${encodeURIComponent(CLI_PACKAGE)}/next`);return new Response(JSON.stringify({name:CLI_PACKAGE,version:CLI_VERSION,dist:{integrity:sri(Buffer.from('fixture')),tarball:`https://registry.npmjs.org/${CLI_PACKAGE}/-/skillshelf-${CLI_VERSION}.tgz`}}));};console.log=(value)=>output.push(value);t.after(()=>{globalThis.fetch=original;console.log=log;});
+  globalThis.fetch=async url=>{assert.equal(String(url),`https://registry.npmjs.org/${encodeURIComponent(CLI_PACKAGE)}/latest`);return new Response(JSON.stringify({name:CLI_PACKAGE,version:CLI_VERSION,dist:{integrity:sri(Buffer.from('fixture')),tarball:`https://registry.npmjs.org/${CLI_PACKAGE}/-/skillshelf-${CLI_VERSION}.tgz`}}));};console.log=(value)=>output.push(value);t.after(()=>{globalThis.fetch=original;console.log=log;});
   await buildProgram().parseAsync(['node','skillshelf','--home',home,'--json','self-update','--check']);
-  const data=JSON.parse(output[0]).data;assert.equal(data.channel,'next');assert.equal(data.latest,CLI_VERSION);assert.equal(data.command,`npm install -g ${CLI_PACKAGE}@${CLI_VERSION}`);assert.equal(data.published,undefined);await assert.rejects(lstat(home),{code:'ENOENT'});
+  const data=JSON.parse(output[0]).data;assert.equal(data.channel,'latest');assert.equal(data.latest,CLI_VERSION);assert.equal(data.command,`npm install -g ${CLI_PACKAGE}@${CLI_VERSION}`);assert.equal(data.published,undefined);await assert.rejects(lstat(home),{code:'ENOENT'});
 });
 test('public frozen lock may borrow only a fully matching explicit development artifact', async t => {
   const root = await scratch(t), { entry, bytes } = fixture(), catalogPath = path.join(root, 'catalog.json');
@@ -133,7 +133,7 @@ test('read-only npm check and explicit refresh use bounded fixed source and veri
   globalThis.fetch = async (url, options) => {
     calls.push(String(url)); assert.equal(options.redirect, 'error');
     if (String(url) === tarball) return new Response(catalogBytes);
-    assert.equal(String(url), `https://registry.npmjs.org/${encodeURIComponent(CATALOG_PACKAGE)}/next`);
+    assert.equal(String(url), `https://registry.npmjs.org/${encodeURIComponent(CATALOG_PACKAGE)}/latest`);
     return new Response(JSON.stringify({ name: CATALOG_PACKAGE, version, dist: { integrity: sri(catalogBytes), tarball } }));
   };
   t.after(() => { globalThis.fetch = original; });

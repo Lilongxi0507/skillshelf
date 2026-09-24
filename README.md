@@ -4,7 +4,7 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **本候选发布尚未完成。** `0.2.0-preview.1` 包含 8 个完整技能包、目录和 CLI，共 10 个 npm 包。三平台 Node 22/24 CI 已通过；其中 7 个技能包已发布并核对公共下载摘要。GitNexus 首次发布受到 npm `429` 限流，目录和 CLI 尚未发布新版本，公共 CLI 的 `next` 仍为 `0.1.0-preview.2`。完成余下发布与公共安装测试前，不将本候选标为已交付。
+> **本候选发布尚未完成。** `0.2.0` 包含 8 个完整技能包、目录和 CLI，共 10 个 npm 包。三平台 Node 22/24 CI 已通过；其中 7 个技能包已发布并核对公共下载摘要。GitNexus 首次发布受到 npm `429` 限流，目录和 CLI 尚未发布新版本，公共 CLI 的 `latest` 仍为 `0.1.0-preview.2`。完成余下发布与公共安装测试前，不将本候选标为已交付。
 >
 > 发布进度与实际验证范围见 [公开验证记录](PUBLIC-VERIFICATION.md)。独立公开源码：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
@@ -22,11 +22,11 @@ SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文
 **公开预览版发布完成后：**
 
 ```bash
-npm install -g @llx17669475/skillshelf@next
+npm install -g @llx17669475/skillshelf@latest
 skillshelf
 ```
 
-短期试用也可使用 `npx @llx17669475/skillshelf@next`。首次获取 CLI 及其依赖可能联网，不受 CLI 启动后的 `--offline` 控制。长期离线使用建议持久安装 CLI。
+短期试用也可使用 `npx @llx17669475/skillshelf@latest`。首次获取 CLI 及其依赖可能联网，不受 CLI 启动后的 `--offline` 控制。长期离线使用建议持久安装 CLI。
 
 无参数进入中文菜单；自动化可使用下列子命令。`--home <目录>`、`--catalog <文件>`、`--offline`、`--json` 等全局选项放在命令前。写操作默认预览确认；非交互环境必须指定 `--yes` 或 `--dry-run`。
 
@@ -104,7 +104,7 @@ skillshelf remove ui-ux-pro-max --yes   # 移除当前范围选择，保留下�
 skillshelf self-update --check         # 检查 CLI，不自行覆盖 npm 管理的程序
 ```
 
-此预览版使用 `next` 通道，而不是稳定版 `latest`。目录检查/刷新与 CLI 更新检查跟随预览通道；技能本身仍按目录或项目锁的确切版本与摘要获取。发布前远端检查可能因包或标签尚不存在而失败，不代表有可用更新。CLI 升级由 npm 完成：`npm install -g @llx17669475/skillshelf@next`。
+此预览版使用 `latest` 通道，而不是稳定版 `latest`。目录检查/刷新与 CLI 更新检查跟随预览通道；技能本身仍按目录或项目锁的确切版本与摘要获取。发布前远端检查可能因包或标签尚不存在而失败，不代表有可用更新。CLI 升级由 npm 完成：`npm install -g @llx17669475/skillshelf@latest`。
 
 ### 从旧占位预览迁移
 

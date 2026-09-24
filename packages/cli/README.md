@@ -4,7 +4,7 @@
 
 按需下载精选技能的完整文件，持久保存在本机，通过受管链接或完整副本接入 Agent 技能目录。CLI 只携带元数据，不捆绑全部技能；清理 npm/npx 缓存不会移走已安装内容。
 
-> 本地候选为 `0.2.0-preview.1`，由 8 个完整技能包、1 个目录包和 1 个 CLI 包组成，尚未发布。历史版本、CI 和公共 `@next` 不代表本候选已验收；当前 Linux Node 24 隔离回归与 PTY 结果见仓库内产品验收记录。
+> 本地候选为 `0.2.0`，由 8 个完整技能包、1 个目录包和 1 个 CLI 包组成，尚未发布。历史版本、CI 和公共 `@latest` 不代表本候选已验收；当前 Linux Node 24 隔离回归与 PTY 结果见仓库内产品验收记录。
 
 源码与完整指南：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
@@ -13,11 +13,11 @@
 需要 **Node.js >=22.20.0**，建议 Node.js 22/24 的最新补丁版。
 
 ```bash
-npm install -g @llx17669475/skillshelf@next
+npm install -g @llx17669475/skillshelf@latest
 skillshelf
 ```
 
-短期试用：`npx @llx17669475/skillshelf@next`。首次取得 CLI 或依赖仍可能联网。无参数进入中文菜单；非交互使用显式子命令。
+短期试用：`npx @llx17669475/skillshelf@latest`。首次取得 CLI 或依赖仍可能联网。无参数进入中文菜单；非交互使用显式子命令。
 
 ```bash
 skillshelf list
@@ -51,7 +51,7 @@ skillshelf migrate home --to "~/SkillShelf Data" --yes
 skillshelf uninstall --keep-home --yes
 ```
 
-全局选项放命令前：`--home <目录>`、`--catalog <可信本地目录快照>`、`--offline`、`--json`。非交互写操作需要 `--yes`；`--dry-run` 只预览。预览版目录与 CLI 更新检查使用 `next`，安装技能仍取目录/锁中的确切版本；CLI 升级用上述 npm 安装命令。
+全局选项放命令前：`--home <目录>`、`--catalog <可信本地目录快照>`、`--offline`、`--json`。非交互写操作需要 `--yes`；`--dry-run` 只预览。预览版目录与 CLI 更新检查使用 `latest`，安装技能仍取目录/锁中的确切版本；CLI 升级用上述 npm 安装命令。
 
 当前目录收录 83 项：13 项 Taste、完整 UI/UX Pro Max（74 文件）、第一方搜索和媒体生成工具、Archify（完整图表渲染器与许可记录）、Matt Pocock（38 项）、Superpowers（15 项）和 GitNexus（13 项）。内容包保留脚本、数据、引用资源和许可证；安装不会执行技能脚本或 npm hooks，也不自动安装技能依赖。GitNexus 使用 PolyForm Noncommercial 1.0.0，只适用于该许可允许的非商业用途；Archify 的品牌素材按各自许可处理。
 

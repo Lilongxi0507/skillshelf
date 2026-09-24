@@ -41,7 +41,7 @@ async function nextCatalog(root, currentPath) {
   const current = JSON.parse(await readFile(currentPath, 'utf8'));
   const old = current.skills.find(entry => entry.id === 'brandkit');
   assert.ok(old);
-  const version = '0.2.0';
+  const version = '0.3.0';
   const source = path.join(root, 'new-brandkit');
   await mkdir(source);
   await writeFile(path.join(source, 'SKILL.md'), '---\nname: brandkit\ndescription: Installed CLI update fixture\n---\n# Updated brandkit\n');

@@ -1,6 +1,6 @@
 # SkillShelf 安全与信任边界
 
-本说明适用于当前 10 包 `0.2.0-preview.1` 本地候选。公开目标为 npm `@llx17669475` 与 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)；本候选仍未发布。本文不是 npm 已上架、独立安全审计或跨平台验收的证明。
+本说明适用于当前 10 包 `0.2.0` 本地候选。公开目标为 npm `@llx17669475` 与 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)；本候选仍未发布。本文不是 npm 已上架、独立安全审计或跨平台验收的证明。
 
 ## 三条独立的信任边界
 
@@ -52,7 +52,7 @@
 
 ## 预览升级与旧数据
 
-公开预览使用 `@llx17669475`、`next` 通道，只有确切已审版本与摘要才是内容身份。CLI 升级交给 npm；版本检查不自行覆盖程序。
+公开预览使用 `@llx17669475`、`latest` 通道，只有确切已审版本与摘要才是内容身份。CLI 升级交给 npm；版本检查不自行覆盖程序。
 
 旧 `@skillshelf-local` 是不同的开发包身份。建议新版本使用新的 home，保留旧 home 和自定义内容；不会静默修改旧锁、账本或来源字段。不要通过字符串替换把旧占位包伪装为新 scope 的已验证包，也不要强行覆盖旧 Agent 投影。
 

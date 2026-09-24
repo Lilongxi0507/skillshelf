@@ -109,7 +109,7 @@ test('CLI audit uses fixed scope and a real exact file allowlist', async () => {
   await assert.rejects(auditCliArchive(makeTarball(files.map(file => file.path === 'package/dist/index.js' ? { ...file, executable: false } : file)), { api }), /executable/);
   const changed = structuredClone(catalog); changed.skills[0].title = 'Stale catalog';
   await assert.rejects(auditCliArchive(makeTarball(files), { api, expectedCatalog: changed }), /stale/);
-  for (const patch of [{ name: '@unreviewed/skillshelf' }, { scripts: { postinstall: 'untrusted' } }, { repository: { type: 'git', url: 'https://example.com/elsewhere.git' } }, { publishConfig: { access: 'public', tag: 'latest' } }]) {
+  for (const patch of [{ name: '@unreviewed/skillshelf' }, { scripts: { postinstall: 'untrusted' } }, { repository: { type: 'git', url: 'https://example.com/elsewhere.git' } }, { publishConfig: { access: 'public', tag: 'beta' } }]) {
     const mutated = files.map(file => file.path === 'package/package.json' ? { ...file, data: JSON.stringify({ ...JSON.parse(file.data), ...patch }) } : file);
     await assert.rejects(auditCliArchive(makeTarball(mutated), { api }));
   }
@@ -134,9 +134,9 @@ test('publication plans retain the reviewed package count and SRI', () => {
   rows.push(publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf`, version, `cli-${version}.tgz`, bytes, api));
   const plan = publicationPlan(rows, api, 16, true);
   assert.equal(plan.packages.length, 18); assert.equal(plan.complete, true); assert.equal(plan.published, false);
-  for (const row of plan.packages) { assert.deepEqual(Object.keys(row).sort(), ['access', 'file', 'integrity', 'name', 'repository', 'tag', 'version']); assert.equal(row.tag, 'next'); assert.equal(row.access, 'public'); assert.equal(row.repository, api.REPOSITORY_URL); assert.equal(row.integrity, integrityFor(bytes)); }
+  for (const row of plan.packages) { assert.deepEqual(Object.keys(row).sort(), ['access', 'file', 'integrity', 'name', 'repository', 'tag', 'version']); assert.equal(row.tag, api.RELEASE_CHANNEL); assert.equal(row.access, 'public'); assert.equal(row.repository, api.REPOSITORY_URL); assert.equal(row.integrity, integrityFor(bytes)); }
   assert.throws(() => publicationPlan([...rows.slice(0, 17), rows[0]], api, 16, true), /unique/);
-  assert.throws(() => publicationPlan(rows.map((row, index) => index ? row : { ...row, tag: 'latest' }), api, 16, true), /Unreviewed/);
+  assert.throws(() => publicationPlan(rows.map((row, index) => index ? row : { ...row, tag: 'beta' }), api, 16, true), /Unreviewed/);
   assert.throws(() => publicationEntry('@unreviewed/skillshelf', version, 'cli.tgz', bytes, api), /identity/);
   assert.throws(() => publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf`, version, '../cli.tgz', bytes, api));
 });
