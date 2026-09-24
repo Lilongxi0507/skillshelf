@@ -102,3 +102,58 @@ test('uninstall preview never removes data without explicit confirmation', async
   assert.equal(preview.dryRun, true);
   assert.equal((await listProfiles(ctx)).profiles.length, 0);
 });
+
+test('uninstall refuses to remove the OS home directory or any ancestor that contains it', async t => {
+  const { root, ctx } = await fixture(t);
+  const userHome = join(root, 'userhome'); await mkdir(userHome, { recursive: true }); await writeFile(join(userHome, 'keep.txt'), 'data');
+  const previous = process.env.HOME;
+  try {
+    process.env.HOME = userHome;
+    await assert.rejects(uninstallSkillShelf({ ...ctx, home: userHome }, { yes: true }), /拒绝删除/);
+    const parent = join(root, 'danger'); await mkdir(join(parent, 'realhome'), { recursive: true }); await writeFile(join(parent, 'realhome', 'keep.txt'), 'data');
+    process.env.HOME = join(parent, 'realhome');
+    await assert.rejects(uninstallSkillShelf({ ...ctx, home: parent }, { yes: true }), /拒绝删除/);
+    assert.equal((await lstat(join(parent, 'realhome', 'keep.txt'))).isFile(), true);
+    process.env.HOME = userHome;
+    const nested = join(userHome, 'skillshelf-data'); await mkdir(nested, { recursive: true });
+    const removed = await uninstallSkillShelf({ ...ctx, home: nested }, { yes: true });
+    assert.ok(removed.removed.includes(nested));
+    assert.equal((await lstat(userHome)).isDirectory(), true);
+  } finally { process.env.HOME = previous; }
+});
+
+test('JSON error reporting never echoes a global option value as the command name', async () => {
+  const { buildProgram, errorCommandName } = await import('../packages/cli/dist/index.js');
+  const program = buildProgram();
+  assert.equal(errorCommandName(program, ['node', 'skillshelf', '--home', '/data/important', 'uninstall']), 'uninstall');
+  assert.equal(errorCommandName(program, ['node', 'skillshelf', '--home=/data/important', '--json', 'agents', 'list', '--bad']), 'agents list');
+  assert.equal(errorCommandName(program, ['node', 'skillshelf', '--offline', 'install', 'taste', '--nope']), 'install');
+  assert.equal(errorCommandName(program, ['node', 'skillshelf', '--json']), 'skillshelf');
+});
+
+test('draft removal and profile replacement keep a dry-run preview before destructive writes', async t => {
+  const { ctx } = await fixture(t);
+  await createDraft(ctx, 'gated-draft');
+  const draftPreview = await removeDraft(ctx, 'gated-draft', { dryRun: true });
+  assert.equal(draftPreview.exists, true);
+  assert.equal((await lstat(join(ctx.home, 'drafts', 'gated-draft'))).isDirectory(), true);
+  assert.equal((await removeDraft(ctx, 'gated-draft')).removed, true);
+  await saveProfile(ctx, { id: 'frontend', name: 'first', packs: ['taste'] });
+  const profilePreview = await saveProfile(ctx, { id: 'frontend', name: 'second', packs: ['archify'] }, { dryRun: true });
+  assert.equal(profilePreview.replaced, true);
+  assert.equal(profilePreview.profile.name, 'second');
+  assert.equal((await getProfile(ctx, 'frontend')).name, 'first');
+});
+
+test('draft publication requires an exact strict-semver version before touching content', async t => {
+  const { ctx } = await fixture(t);
+  await assert.rejects(publishDraft(ctx, 'missing', { version: '1.2.3-01', yes: true }), /版本/);
+  await assert.rejects(publishDraft(ctx, 'missing', { version: '0.2', yes: true }), /版本/);
+  await assert.rejects(publishDraft(ctx, 'missing', { yes: true }), /草稿/);
+});
+
+test('the registry client identifies itself with the current CLI version', async () => {
+  const { USER_AGENT } = await import('../packages/cli/dist/registry/http.js');
+  const { CLI_VERSION } = await import('../packages/cli/dist/release.js');
+  assert.equal(USER_AGENT, 'SkillShelf/' + CLI_VERSION + ' (data-only)');
+});

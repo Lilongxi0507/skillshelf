@@ -108,7 +108,7 @@ test('new bundled catalog supersedes old cached schema1 metadata without changin
 test('singleton legacy IDs never auto-replace schema1 selection and pinned legacy migrates explicitly',requiresPacks,async t=>{
   const legacyPath=await legacyCatalogFixture(catalogPath),{root,ctx}=await fixture(t),legacy={...ctx,catalogPath:legacyPath},target=(await addAgent(legacy,'custom',{path:path.join(root,'legacy','skills')})).target;
   await installSkills(legacy,['archify'],{agents:[target.id]});await pinSkills(legacy,['archify'],true);const before=await loadState(ctx);
-  await assert.rejects(installSkills(ctx,['archify'],{agents:[]}),/旧成员/);assert.deepEqual(await loadState(ctx),before);
+  await assert.rejects(installSkills(ctx,['archify'],{agents:[]}),/旧成员[\s\S]*remove[\s\S]*applyLegacyMigration/);assert.deepEqual(await loadState(ctx),before);
   const preview=await previewLegacyMigration(ctx,'archify');assert.equal(preview.existingMembers.length,1);await applyLegacyMigration(ctx,'archify',{yes:true});const after=await loadState(ctx);assert.equal(after.selections.archify.pinned,true);assert.ok(after.releases[before.selections.archify.releaseKey]);assert.equal(after.generation,before.generation+1);
 });
 test('schema2 manifest identity changes when metadata changes over identical files',requiresPacks,async t=>{

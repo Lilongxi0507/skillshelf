@@ -20,10 +20,11 @@ async function saveProfiles(ctx: Context, value: ProfileFile): Promise<void> { a
 
 export async function listProfiles(ctx: Context): Promise<OperationResult> { return { profiles: Object.values((await readProfiles(ctx)).profiles) }; }
 export async function getProfile(ctx: Context, id: string): Promise<TaskProfile> { const profile = (await readProfiles(ctx)).profiles[checkId(id)]; if (!profile) fail('USAGE', '任务组合不存在：' + id); return profile; }
-export async function saveProfile(ctx: Context, input: { id: string; name: string; description?: string; packs: string[]; members?: Record<string, string[]>; mcps?: string[] }): Promise<OperationResult> {
+export async function saveProfile(ctx: Context, input: { id: string; name: string; description?: string; packs: string[]; members?: Record<string, string[]>; mcps?: string[] }, options: { dryRun?: boolean } = {}): Promise<OperationResult> {
   const id = checkId(input.id); if (!input.name?.trim() || input.packs.length > 100) fail('USAGE', '任务组合名称或包列表无效');
   const file = await readProfiles(ctx), prior = file.profiles[id], now = new Date().toISOString();
   const profile: TaskProfile = { id, name: input.name.trim(), description: input.description?.trim(), packs: [...new Set(input.packs)], members: input.members, mcps: input.mcps, createdAt: prior?.createdAt || now, updatedAt: now };
+  if (options.dryRun) return { profile, replaced: !!prior, dryRun: true };
   file.profiles[id] = profile; await saveProfiles(ctx, file); return { profile, replaced: !!prior };
 }
 export async function removeProfile(ctx: Context, id: string): Promise<OperationResult> { const file = await readProfiles(ctx), key = checkId(id); if (!file.profiles[key]) return { id: key, removed: false }; delete file.profiles[key]; await saveProfiles(ctx, file); return { id: key, removed: true }; }

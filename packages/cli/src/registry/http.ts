@@ -1,7 +1,8 @@
 import { ALLOWED_SCOPE, EXACT_VERSION, LIMITS, validateIntegrity } from '../validation.js';
-import { RELEASE_CHANNEL } from '../release.js';
+import { CLI_VERSION, RELEASE_CHANNEL } from '../release.js';
 
 export const NPM_REGISTRY = 'https://registry.npmjs.org';
+export const USER_AGENT = 'SkillShelf/' + CLI_VERSION + ' (data-only)';
 export const CATALOG_PACKAGE = `${ALLOWED_SCOPE}/skillshelf-catalog`;
 export const CLI_PACKAGE = `${ALLOWED_SCOPE}/skillshelf`;
 export interface NpmRelease { name: string; version: string; integrity: string; tarball: string }
@@ -12,7 +13,7 @@ export function assertRegistryUrl(value: string): URL {
 }
 export async function fetchRegistryBytes(url: string, maximum: number): Promise<Buffer> {
   assertRegistryUrl(url);
-  const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(60_000), headers: { Accept: 'application/json, application/octet-stream', 'User-Agent': 'SkillShelf/0.1 (data-only)' } });
+  const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(60_000), headers: { Accept: 'application/json, application/octet-stream', 'User-Agent': USER_AGENT } });
   if (!response.ok) { await response.body?.cancel(); throw new Error(`Public npm registry returned HTTP ${response.status}`); }
   const declared = response.headers.get('content-length');
   if (declared && (!/^\d+$/.test(declared) || Number(declared) > maximum)) { await response.body?.cancel(); throw new Error('Registry response exceeds byte limit'); }

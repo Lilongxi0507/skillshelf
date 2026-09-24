@@ -117,7 +117,7 @@ async function installSkillsInternal(ctx:Context,ids:string[],options:MutationOp
   // Preview catches pins and unmanaged collisions before acquiring packages.
   for(const entry of entries){const existing=selections(state,scope)[entry.id];
     const legacySingleton=entry.kind==='pack'&&entry.members?.length===1&&existing&&state.releases[existing.releaseKey]?.manifest.schemaVersion===1;
-    if(legacySingleton)fail('CONFLICT',`检测到旧成员 ${entry.id} 已安装；请先使用 previewLegacyMigration/applyLegacyMigration 显式迁移完整包`);
+    if(legacySingleton)fail('CONFLICT',`检测到旧成员安装：包 ${entry.id} 的成员此前以独立技能安装。请先 remove 旧成员技能后重新 install 完整包，或使用 SkillShelf core API 的 previewLegacyMigration/applyLegacyMigration 显式迁移以保留现有投影`);
     if(existing?.pinned&&existing.releaseKey!==releaseKey(entry.id,entry.version,entry.contentDigest,entry.kind==='pack'?entry.integrity:''))fail('CONFLICT','技能已固定，请先 unpin 再更换版本：'+entry.id);
   }
   for(const t of targets)for(const e of entries)for(const member of e.members||[{name:e.name}]){const path=join(t.path,member.name),old=state.projections[projectionKey(path)];if(!old&&await exists(path))fail('CONFLICT','已有同名非受管技能：'+path);if(old)await checkProjection(ctx,old,state.releases[old.releaseKey]!);}

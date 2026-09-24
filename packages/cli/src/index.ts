@@ -35,6 +35,22 @@ async function mutate(cmd:Command,preview:()=>Promise<unknown>,apply:()=>Promise
   if(!o.yes){if(!process.stdin.isTTY||!process.stdout.isTTY||o.json)fail('USAGE','非交互写操作需要 --yes，或使用 --dry-run 预览');display(await preview(),'变更预览');if(!await confirmation('确认以上变更？'))fail('CANCELLED','操作已取消');}
   emit(cmd,await apply());
 }
+/** JSON 错误报告：全局选项的值绝不会被当作命令名回显。 */
+export function errorCommandName(program:Command,argv:string[]):string{
+  const valued=new Set(['--home','--catalog']);
+  const positional:string[]=[];
+  for(let index=2;index<argv.length;index++){
+    const token=argv[index]!;
+    if(token==='--')break;
+    if(token.startsWith('-')&&token!=='-'){if(valued.has(token))index++;continue;}
+    positional.push(token);
+  }
+  const paths=new Set<string>();
+  const walk=(parent:Command,prefix:string):void=>{for(const child of parent.commands)for(const name of [child.name(),...child.aliases()]){const value=prefix?prefix+' '+name:name;paths.add(value);walk(child,value);}};
+  walk(program,'');
+  for(let length=positional.length;length>0;length--){const candidate=positional.slice(0,length).join(' ');if(paths.has(candidate))return candidate;}
+  return positional[0]||'skillshelf';
+}
 function writing(command:Command,project=true):Command{command.option('-y, --yes','确认执行').option('--dry-run','只预览，不修改');if(project)command.option('--project <directory>','显式项目范围，默认全局');return command;}
 function targeting(command:Command):Command{return command.option('-a, --agent <targets...>','Agent ID或已注册目标ID').option('--mode <mode>','auto/link/copy');}
 export function buildProgram():Command{
@@ -92,10 +108,10 @@ export function buildProgram():Command{
   author.command('create <id>').option('--description <text>','技能简介').option('--member <ids...>','多成员套件的成员 ID').action(async(id,_,cmd)=>{const o=cmd.opts(),members=o.member?.map((member:string)=>({id:member}));emit(cmd,await createDraft(optionContext(cmd),id,{description:o.description,members}));});
   author.command('validate <id>').action(async(id,_,cmd)=>emit(cmd,await validateDraft(optionContext(cmd),id)));
   writing(author.command('publish <id>').description('把已校验草稿写入本机共享库')).option('--version <version>','本地版本号').action(async(id,_,cmd)=>{const ctx=optionContext(cmd),opts=await mutationOptions(cmd);await mutate(cmd,()=>publishDraft(ctx,id,{version:cmd.opts().version,dryRun:true}),()=>publishDraft(ctx,id,{version:cmd.opts().version,yes:opts.yes}));});
-  author.command('remove <id>').action(async(id,_,cmd)=>emit(cmd,await removeDraft(optionContext(cmd),id)));
+  writing(author.command('remove <id>'),false).action(async(id,_,cmd)=>{const ctx=optionContext(cmd);await mutate(cmd,()=>removeDraft(ctx,id,{dryRun:true}),()=>removeDraft(ctx,id));});
   const profiles=program.command('profiles').description('任务组合与项目偏好');
   profiles.command('list').action(async(_,cmd)=>emit(cmd,await listProfiles(optionContext(cmd))));
-  profiles.command('save <id>').requiredOption('--name <name>','组合显示名称').requiredOption('--packs <ids...>','完整技能包 ID').option('--description <text>','组合说明').action(async(id,_,cmd)=>emit(cmd,await saveProfile(optionContext(cmd),{id,name:cmd.opts().name,description:cmd.opts().description,packs:cmd.opts().packs})));
+  writing(profiles.command('save <id>').requiredOption('--name <name>','组合显示名称').requiredOption('--packs <ids...>','完整技能包 ID').option('--description <text>','组合说明'),false).action(async(id,_,cmd)=>{const ctx=optionContext(cmd),input={id,name:cmd.opts().name,description:cmd.opts().description,packs:cmd.opts().packs};await mutate(cmd,()=>saveProfile(ctx,input,{dryRun:true}),()=>saveProfile(ctx,input));});
   writing(profiles.command('apply <id>').description('预览并应用任务组合')).action(async(id,_,cmd)=>{const ctx=optionContext(cmd),opts=await mutationOptions(cmd);await mutate(cmd,()=>applyProfile(ctx,id,{...opts,dryRun:true}),()=>applyProfile(ctx,id,opts));});
   writing(profiles.command('remove <id>').description('删除组合定义'),false).action(async(id,_,cmd)=>mutate(cmd,async()=>({id,dryRun:true}),()=>removeProfile(optionContext(cmd),id)));
   const mcp=program.command('mcp').description('共享 MCP 定义与连接诊断');
@@ -119,7 +135,7 @@ export async function main(argv=process.argv):Promise<void>{
   catch(error){
     if((error as {code?:string}).code==='commander.helpDisplayed'||(error as {code?:string}).code==='commander.version')return;
     const code=classifyError(error);
-    const message=cleanText(errorMessage(error));if(program.opts().json||argv.includes('--json'))console.log(JSON.stringify({schemaVersion:1,command:argv.slice(2).find(x=>!x.startsWith('-'))||'skillshelf',status:'error',error:{code,message}}));else console.error('SkillShelf：'+message);
+    const message=cleanText(errorMessage(error));if(program.opts().json||argv.includes('--json'))console.log(JSON.stringify({schemaVersion:1,command:errorCommandName(program,argv),status:'error',error:{code,message}}));else console.error('SkillShelf：'+message);
     process.exitCode=exitCodes[code];
   }
 }

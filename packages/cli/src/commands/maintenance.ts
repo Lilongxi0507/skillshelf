@@ -1,4 +1,5 @@
 import { join, resolve, dirname } from 'node:path';
+import { homedir } from 'node:os';
 import { readdir, lstat, rm, cp, rename } from 'node:fs/promises';
 import type { Context, MutationOptions, OperationResult } from '../types.js';
 import { exists, readJson, ensurePrivateDir, within } from '../store/fs.js';
@@ -63,8 +64,10 @@ export async function uninstallSkillShelf(ctx: Context, options: MutationOptions
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') retained.push({ path, reason: '无法移除：' + (error instanceof Error ? error.message : String(error)) }); }
   }
   if (options.removeHome !== false) {
-    if (resolve(ctx.home) === resolve(process.env.HOME || '/')) fail('CONFLICT', '拒绝删除用户主目录');
-    await rm(ctx.home, { recursive: true, force: true }); removed.push(ctx.home);
+    const target = resolve(ctx.home), userHome = resolve(process.env.HOME || process.env.USERPROFILE || homedir());
+    // A dedicated SkillShelf home inside the OS home directory is removable; the OS home directory itself or any ancestor never is.
+    if (target === userHome || within(target, userHome)) fail('CONFLICT', '拒绝删除用户主目录或任何包含它的目录');
+    await rm(target, { recursive: true, force: true }); removed.push(target);
   }
   return { removed, retained, npmCommand: preview.npmCommand, complete: retained.length === 0 };
 }

@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Context, PackMember, RuntimeDeclaration, SkillManifest, OperationResult } from './types.js';
 import { ensurePrivateDir, exists, readJson, writeJson, within } from './store/fs.js';
-import { digestPackManifest, inventory, validateManifest, validateSkillDocument, verifyTree } from './validation.js';
+import { digestPackManifest, EXACT_VERSION, inventory, validateManifest, validateSkillDocument, verifyTree } from './validation.js';
 import { importValidatedPack } from './manager.js';
 import { initHome } from './store/state.js';
 import { fail } from './errors.js';
@@ -69,7 +69,7 @@ export async function listDrafts(ctx: Context): Promise<OperationResult> {
 
 export async function publishDraft(ctx: Context, id: string, options: { version?: string; yes?: boolean; dryRun?: boolean } = {}): Promise<OperationResult> {
   const version = options.version || '0.0.0-local.1';
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version)) fail('USAGE', '草稿版本必须是 semver');
+  if (!EXACT_VERSION.test(version)) fail('USAGE', '草稿版本必须是精确的语义化版本');
   const manifest = await manifestForDraft(ctx, id), root = await draftRoot(ctx, id);
   await verifyTree(root, manifest);
   if (options.dryRun) return { id, version, members: manifest.members?.map(item => item.id), files: manifest.files.length, dryRun: true };
@@ -77,8 +77,9 @@ export async function publishDraft(ctx: Context, id: string, options: { version?
   return importValidatedPack(ctx, root, manifest, version, { yes: true });
 }
 
-export async function removeDraft(ctx: Context, id: string): Promise<OperationResult> {
-  const root = await draftRoot(ctx, id); if (!(await exists(root))) return { id, removed: false };
+export async function removeDraft(ctx: Context, id: string, options: { dryRun?: boolean } = {}): Promise<OperationResult> {
+  const root = await draftRoot(ctx, id); if (options.dryRun) return { id, path: root, exists: await exists(root), dryRun: true };
+  if (!(await exists(root))) return { id, removed: false };
   if (!within(join(ctx.home, 'drafts'), resolve(root))) fail('CONFLICT', '草稿路径越界');
   const { rm } = await import('node:fs/promises'); await rm(root, { recursive: true }); return { id, removed: true };
 }
