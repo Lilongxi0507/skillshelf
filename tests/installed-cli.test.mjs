@@ -10,7 +10,8 @@ import { digestManifest, inventory } from '../packages/cli/dist/validation.js';
 import { makeTarball } from '../scripts/lib.mjs';
 
 const archive = process.env.SKILLSHELF_TEST_CLI_ARCHIVE;
-const catalog = process.env.SKILLSHELF_TEST_CATALOG;
+import { legacyCatalogFixture } from './legacy-fixture.mjs';
+const catalog = await legacyCatalogFixture(process.env.SKILLSHELF_TEST_CATALOG);
 const base = process.env.SKILLSHELF_TEST_TMP ?? tmpdir();
 const ready = Boolean(archive && catalog && process.env.npm_execpath);
 
@@ -89,11 +90,11 @@ test('actual packed CLI installs into a private prefix and its native command in
   const binInfo = await lstat(bin);
   assert.ok(binInfo.isFile() || binInfo.isSymbolicLink(), 'npm created a native command entry');
 
-  assert.equal(completed(installedCommand(bin, ['--version'], root), 'installed --version'), '0.1.0-preview.2');
+  assert.equal(completed(installedCommand(bin, ['--version'], root), 'installed --version'), JSON.parse(await readFile(catalog, 'utf8')).catalogVersion);
   const options = ['--home', home, '--catalog', catalog, '--offline', '--json'];
   const list = JSON.parse(completed(installedCommand(bin, [...options, 'list'], root), 'installed list'));
   assert.equal(list.status, 'ok');
-  assert.equal(list.data.skills.length, 16);
+  assert.equal(list.data.skills.length, JSON.parse(await readFile(catalog, 'utf8')).skills.length);
   const install = JSON.parse(completed(installedCommand(bin, [...options, 'install', 'brandkit', '--yes'], root), 'installed on-demand install'));
   assert.equal(install.status, 'ok');
   assert.equal((await readdir(path.join(home, 'artifacts'))).length, 1, 'one selected skill fetches one archive');
@@ -134,7 +135,7 @@ test('actual packed CLI installs into a private prefix and its native command in
   assert.ok((await readFile(path.join(projected, 'SKILL.md'), 'utf8')).includes('Updated brandkit'));
   completed(installedCommand(bin, [...updatedOptions, 'rollback', 'brandkit', '--yes'], root), 'installed CLI rollback');
   status = JSON.parse(completed(installedCommand(bin, [...updatedOptions, 'status'], root), 'status after rollback')).data;
-  assert.equal(status.installed.find(item => item.id === 'brandkit').version, '0.1.0-preview.2');
+  assert.equal(status.installed.find(item => item.id === 'brandkit').version, JSON.parse(await readFile(catalog, 'utf8')).catalogVersion);
   assert.equal(await readFile(lockPath, 'utf8'), lockBefore, 'global update and rollback leave project lock unchanged');
   const verified = JSON.parse(completed(installedCommand(bin, [...options, 'verify'], root), 'installed verify'));
   assert.equal(verified.status, 'ok');

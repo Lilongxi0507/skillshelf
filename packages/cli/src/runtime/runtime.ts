@@ -8,9 +8,9 @@ import type { Context, Release } from '../types.js';
 import { fail } from '../errors.js';
 import { createHash } from 'node:crypto';
 import { ALLOWED_SCOPE, canonicalJson, LIMITS, validateCatalog, verifyTree } from '../validation.js';
+import { CLI_VERSION } from '../release.js';
 import { loadCatalog } from '../catalog/catalog.js';
-import { loadState } from '../store/state.js';
-import { validateHomeLocation } from '../agents/storage-boundary.js';
+import { validateStoredHomeLocation } from '../store/state.js';
 import { readRegularFile } from '../registry/files.js';
 import { verifySkillArchive } from '../registry/tar.js';
 import { assertNoLinkAncestors, assertPrivatePath, canonicalExistingDirectory, canonicalStorageHome, createPrivateFile, ensurePrivateDirectory, localCommand, sanitizedEnvironment, temporaryName } from './privacy.js';
@@ -38,11 +38,22 @@ const RUNNABLE: Record<string, readonly ProviderKind[]> = {
 
 function isMissing(error: unknown): boolean { return (error as NodeJS.ErrnoException).code === 'ENOENT'; }
 
+function approvedEntrypoint(release: Release): string {
+  if (release.manifest.schemaVersion === 1) return 'scripts/run.py';
+  const members = release.manifest.members;
+  const member = members?.[0];
+  if (members?.length !== 1 || !member || member.id !== release.id || member.name !== release.name || member.runtime.entrypoint !== 'scripts/run.py') fail('UNAVAILABLE', 'Only the original singleton first-party member can execute');
+  const entrypoint = member.path + '/scripts/run.py';
+  if (canonicalJson({ ...member.runtime, entrypoint }) !== canonicalJson(release.manifest.runtime)) fail('INTEGRITY', 'First-party pack runtime differs from its member declaration');
+  return entrypoint;
+}
+
 function requireCurated(release: Release): readonly ProviderKind[] {
   const kinds = Object.hasOwn(RUNNABLE, release.id) ? RUNNABLE[release.id]! : undefined;
-  if (!kinds || release.origin !== 'npm' || release.manifest.id !== release.id || release.manifest.name !== release.name || release.packageName !== `${ALLOWED_SCOPE}/skillshelf-skill-${release.id}`) fail('UNAVAILABLE', 'Only catalog-verified npm first-party SkillShelf search/media releases can execute; local and panel imports are not executable');
+  const packageKind = release.manifest.schemaVersion === 2 ? 'pack' : 'skill';
+  if (!kinds || release.origin !== 'npm' || release.manifest.id !== release.id || release.manifest.name !== release.name || release.packageName !== `${ALLOWED_SCOPE}/skillshelf-${packageKind}-${release.id}`) fail('UNAVAILABLE', 'Only catalog-verified npm first-party SkillShelf search/media releases can execute; local and panel imports are not executable');
   const runtime = release.manifest.runtime;
-  if (runtime.kind !== 'python' || runtime.entrypoint !== 'scripts/run.py' || runtime.requiresNetwork !== true) fail('UNAVAILABLE', 'This first-party release does not declare its approved Python entrypoint');
+  if (runtime.kind !== 'python' || runtime.entrypoint !== approvedEntrypoint(release) || runtime.requiresNetwork !== true) fail('UNAVAILABLE', 'This first-party release does not declare its approved Python entrypoint');
   if (runtime.dependencies?.length) fail('DEPENDENCY', 'The first release runner supports standard-library-only curated scripts; dependencies are never installed automatically');
   if (!runtime.providers || runtime.providers.length !== kinds.length || runtime.providers.some((kind) => !kinds.includes(kind))) fail('INTEGRITY', 'First-party runtime provider declaration does not match the curated skill');
   if (release.contentDigest !== release.manifest.contentDigest || !/^[a-f0-9]{64}$/u.test(release.contentDigest)) fail('INTEGRITY', 'Release and manifest content digests do not match');
@@ -92,12 +103,17 @@ async function findPython(minimum = '3.10'): Promise<PythonRuntime | undefined> 
   return undefined;
 }
 
+export async function verifyExecutionRelease(ctx: Context, release: Release): Promise<string> {
+  requireCurated(release);
+  return verifiedDirectory(ctx, release);
+}
+
 async function verifiedDirectory(ctx: Context, release: Release): Promise<string> {
   // Installation preserves this snapshot only for a verified catalog/explicitly trusted project lock.
   // An imported local tree or a self-asserted source.repository is never an execution authority.
   const snapshot = release.catalogEntry;
   const entry = snapshot
-    ? validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.2', minCliVersion: '0.1.0-preview.2', scope: ALLOWED_SCOPE,
+    ? validateCatalog({ schemaVersion: release.manifest.schemaVersion, catalogVersion: CLI_VERSION, minCliVersion: CLI_VERSION, scope: ALLOWED_SCOPE,
       categories: [{ id: snapshot.category, title: snapshot.category }],
       collections: [{ id: snapshot.collection, title: snapshot.collection, description: 'Installed curated release snapshot', skills: [snapshot.id] }], skills: [snapshot] }).skills[0]
     : (await loadCatalog(ctx)).skills.find((item) => item.id === release.id && item.version === release.version); // local only
@@ -110,7 +126,7 @@ async function verifiedDirectory(ctx: Context, release: Release): Promise<string
   const directory = path.join(home, 'store', release.contentDigest, 'skill');
   await assertNoLinkAncestors(directory);
   await verifyTree(directory, release.manifest);
-  const entrypoint = path.join(directory, 'scripts', 'run.py');
+  const entrypoint = path.join(directory, approvedEntrypoint(release));
   const entryInfo = await lstat(entrypoint);
   if (!entryInfo.isFile() || entryInfo.isSymbolicLink()) fail('INTEGRITY', 'Approved runtime entrypoint is not a regular file');
   return directory;
@@ -253,7 +269,7 @@ async function execute(python: PythonRuntime, entrypoint: string, args: string[]
 
 export async function runSkill(ctx: Context, release: Release, args: string[], options: RunOptions = {}): Promise<RunResult> {
   const declared = requireCurated(release);
-  await validateHomeLocation(ctx,Object.values((await loadState(ctx)).targets),{projects:options.project?[options.project]:[]});
+  await validateStoredHomeLocation(ctx,options.project?[options.project]:[]);
   const directory = await verifiedDirectory(ctx, release); // Check the entire immutable tree before any execution.
   const settings = await loadProviders(ctx);
   const allKnownSecrets = settings.resources.map((row) => row.api_key_env ? process.env[row.api_key_env] : row.api_key).filter((secret): secret is string => Boolean(secret));
@@ -281,7 +297,7 @@ export async function runSkill(ctx: Context, release: Release, args: string[], o
     env.SKILLSHELF_RUNTIME_CONFIG = temporaryConfig; env.SKILLSHELF_OUTPUTS = outputs;
     // Reverify immediately before spawn after preparation; same-user mutation is not a sandbox boundary.
     await verifyTree(directory, release.manifest);
-    const result = await execute(python, path.join(directory, 'scripts', 'run.py'), preparedArgs, env, workdir, allKnownSecrets, options.capture === true);
+    const result = await execute(python, path.join(directory, approvedEntrypoint(release)), preparedArgs, env, workdir, allKnownSecrets, options.capture === true);
     return { skill: release.id, outputs, workdir, ...result };
   } finally {
     // This UUID directory was created by this call; persistent outputs and all Agent roots are untouched.

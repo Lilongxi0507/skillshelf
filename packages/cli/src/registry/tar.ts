@@ -136,7 +136,9 @@ export function validateDataPackage(value: unknown, packageName: string, version
 export function verifySkillArchive(bytes: Uint8Array, entry: CatalogEntry): VerifiedSkillArchive {
   const files = readTarball(bytes, entry.integrity);
   const manifest = validateManifest(parseJsonFile(files.find(file => file.path === 'package/skillshelf.manifest.json')));
-  validateDataPackage(parseJsonFile(files.find(file => file.path === 'package/package.json')), entry.packageName, entry.version);
+  const packageMetadata = parseJsonFile(files.find(file => file.path === 'package/package.json')) as Record<string, unknown>;
+  validateDataPackage(packageMetadata, entry.packageName, entry.version);
+  if (packageMetadata.license !== entry.license) error('catalog/package license mismatch');
   if (manifest.id !== entry.id || manifest.name !== entry.name || manifest.contentDigest !== entry.contentDigest || canonicalJson(manifest.runtime) !== canonicalJson(entry.runtime)) error('catalog/manifest mismatch');
   if (manifest.files.length !== entry.fileCount || manifest.files.reduce((sum, file) => sum + file.size, 0) !== entry.unpackedSize) error('catalog inventory mismatch');
   const permitted = new Set(['package/package.json', 'package/skillshelf.manifest.json', 'package/LICENSE', 'package/NOTICE', ...manifest.files.map(file => 'package/skill/' + file.path)]);
@@ -147,7 +149,10 @@ export function verifySkillArchive(bytes: Uint8Array, entry: CatalogEntry): Veri
     const actual = skillFiles.find(file => file.path === 'package/skill/' + expected.path);
     if (!actual || actual.data.length !== expected.size || createHash('sha256').update(actual.data).digest('hex') !== expected.sha256 || actual.executable !== expected.executable) error('skill file hash/size/mode mismatch');
   }
-  validateSkillDocument(skillFiles.find(file=>file.path==='package/skill/SKILL.md')!.data,manifest.name);
+  if (manifest.schemaVersion === 2) {
+    if (entry.kind !== 'pack' || canonicalJson(manifest.members) !== canonicalJson(entry.members)) error('Pack member metadata differs from catalog');
+    for (const member of manifest.members!) validateSkillDocument(skillFiles.find(file => file.path === `package/skill/${member.path}/SKILL.md`)!.data, member.name);
+  } else validateSkillDocument(skillFiles.find(file=>file.path==='package/skill/SKILL.md')!.data,manifest.name);
   const rootLicense = files.find(file => file.path === 'package/LICENSE'), skillLicense = skillFiles.find(file => /^package\/skill\/LICENSE(?:\.md|\.txt)?$/i.test(file.path));
   if (!rootLicense || !skillLicense || !rootLicense.data.equals(skillLicense.data)) error('root LICENSE missing or inconsistent');
   return { manifest, files: skillFiles.map(file => ({ ...file, path: file.path.slice('package/skill/'.length) })) };

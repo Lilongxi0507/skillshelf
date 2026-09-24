@@ -92,6 +92,11 @@ export async function canonicalAgentPath(value: string, platform: NodeJS.Platfor
   }
 }
 
+/** Use one physical project identity for selections, locks, and Agent targets. */
+export async function canonicalProjectPath(value: string): Promise<string> {
+  return canonicalAgentPath(path.resolve(value));
+}
+
 async function existsDirectory(value: string, platform: NodeJS.Platform): Promise<boolean> {
   if (platform !== process.platform && (platform === 'win32' || process.platform === 'win32')) return false;
   try { return (await lstat(await realpath(value))).isDirectory(); }

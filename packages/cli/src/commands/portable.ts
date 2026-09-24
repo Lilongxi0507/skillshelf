@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile, readFile, rename } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, rm, writeFile, readFile, rename, lstat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
@@ -8,11 +8,13 @@ import { loadCatalog } from '../catalog/catalog.js';
 import { acquireSkill, acquireLockedSkill, verifySkillArchive } from '../registry/registry.js';
 import { readRegularFile } from '../registry/files.js';
 import { ALLOWED_SCOPE, LIMITS, EXACT_VERSION, validateCatalog } from '../validation.js';
+import { CLI_VERSION } from '../release.js';
 import { exists, ensurePrivateDir, readJson, writeJson, within, canonicalPath } from '../store/fs.js';
 import { getRelease, loadState, releaseKey, storePath } from '../store/state.js';
+import { canonicalProjectPath } from '../agents/agents.js';
 import { importTree, chmodTree } from '../store/local.js';
 import { transact } from '../transactions/transaction.js';
-import { withMutation } from '../transactions/operations.js';
+import { fixedProjectOptions, withMutation } from '../transactions/operations.js';
 import { fail } from '../errors.js';
 import { publicEntry, projectChanges } from '../manager.js';
 
@@ -20,12 +22,12 @@ interface ExportSelection { id:string; name:string; version:string; integrity:st
 function artifactName(digest:string,integrity:string):string{return `${digest}-${createHash('sha256').update(integrity).digest('hex').slice(0,16)}.tgz`;}
 function checkedEntry(s:ExportSelection):CatalogEntry|undefined{
   if(!s.entry)return undefined;const e=s.entry;
-  const entry=validateCatalog({schemaVersion:1,catalogVersion:'0.1.0-preview.2',minCliVersion:'0.1.0-preview.2',scope:ALLOWED_SCOPE,categories:[{id:e.category,title:e.category}],collections:[{id:e.collection,title:e.collection,description:'Explicit import',skills:[e.id]}],skills:[e]}).skills[0]!;
+  const entry=validateCatalog({schemaVersion:s.manifest.schemaVersion,catalogVersion:CLI_VERSION,minCliVersion:CLI_VERSION,scope:ALLOWED_SCOPE,categories:[{id:e.category,title:e.category}],collections:[{id:e.collection,title:e.collection,description:'Explicit import',skills:[e.id]}],skills:[e]}).skills[0]!;
   if(entry.localArtifact||entry.id!==s.id||entry.name!==s.name||entry.version!==s.version||entry.packageName!==s.packageName||entry.integrity!==s.integrity||entry.contentDigest!==s.contentDigest||canonicalJson(entry.runtime)!==canonicalJson(s.manifest.runtime))fail('INTEGRITY','导入版本快照不一致');return entry;
 }
 interface Portable { schemaVersion:1; format:'skillshelf-selection'|'skillshelf-bundle'; createdAt:string; skills:ExportSelection[]; agents:Array<{agent:string;label:string;mode:string}> }
 export async function exportLibrary(ctx:Context,output:string,options:MutationOptions&{bundle?:boolean;ids?:string[]}={}):Promise<OperationResult>{
-  const state=await loadState(ctx),scope=options.project?resolve(options.project):'global',selected=scope==='global'?state.selections:state.projects[scope]?.selections||{};
+  const state=await loadState(ctx),scope=options.project?await canonicalProjectPath(options.project):'global',selected=scope==='global'?state.selections:state.projects[scope]?.selections||{};
   const ids=options.ids?.length?options.ids:Object.keys(selected),destination=resolve(output);if(await exists(destination))fail('CONFLICT','导出目标必须不存在');if(within(ctx.home,destination))fail('CONFLICT','导出请使用受管目录以外的位置');
   const skills:ExportSelection[]=ids.map(id=>{const s=selected[id];if(!s)fail('USAGE','范围内未安装：'+id);const r=state.releases[s.releaseKey]!;return{id:r.id,name:r.name,version:r.version,integrity:r.integrity,packageName:r.packageName,contentDigest:r.contentDigest,pinned:s.pinned,entry:r.catalogEntry?publicEntry(r.catalogEntry):undefined,manifest:r.manifest,directory:options.bundle?'contents/'+r.contentDigest+'/skill':undefined,artifact:options.bundle&&r.catalogEntry?'artifacts/'+artifactName(r.contentDigest,r.integrity):undefined};});
   const data:Portable={schemaVersion:1,format:options.bundle?'skillshelf-bundle':'skillshelf-selection',createdAt:new Date().toISOString(),skills,agents:Object.values(state.targets).filter(t=>t.scope===scope).map(t=>({agent:t.agent,label:t.label,mode:t.mode}))};
@@ -49,11 +51,13 @@ function parsePortable(value:unknown):Portable{
   for(const s of p.skills){if(!s||!s.id||seen.has(s.id)||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s.id)||s.id.length>64)fail('INTEGRITY','导入技能ID无效/重复');seen.add(s.id);validateManifest(s.manifest);if(!EXACT_VERSION.test(s.version)||typeof s.pinned!=='boolean'||s.manifest.id!==s.id||s.manifest.name!==s.name||s.manifest.contentDigest!==s.contentDigest)fail('INTEGRITY','导入清单身份不一致');if(s.directory)safeRelativePath(s.directory);if(s.artifact)safeRelativePath(s.artifact);checkedEntry(s);}
   return p;
 }
-export async function importLibrary(ctx:Context,input:string,options:MutationOptions={}):Promise<OperationResult>{return withMutation(ctx,options,()=>importLibraryInternal(ctx,input,options));}
+export async function importLibrary(ctx:Context,input:string,options:MutationOptions={}):Promise<OperationResult>{const fixed=await fixedProjectOptions(options);return withMutation(ctx,fixed,()=>importLibraryInternal(ctx,input,fixed));}
 async function importLibraryInternal(ctx:Context,input:string,options:MutationOptions={}):Promise<OperationResult>{
-  const source=resolve(input),isDirectory=await exists(join(source,'skillshelf-export.json')),data=parsePortable(await readJson(isDirectory?join(source,'skillshelf-export.json'):source));
+  const source=resolve(input),sourceInfo=await lstat(source);
+  if(!sourceInfo.isDirectory()&&!sourceInfo.isFile())fail('INTEGRITY','导入源必须是普通文件或目录');
+  const isDirectory=sourceInfo.isDirectory(),data=parsePortable(await readJson(isDirectory?join(source,'skillshelf-export.json'):source));
   if(data.format==='skillshelf-bundle'&&!isDirectory)fail('INTEGRITY','完整导入需要包含内容的目录');
-  const state=await loadState(ctx),next=structuredClone(state),catalog=await loadCatalog(ctx);const scope=options.project?resolve(options.project):'global';
+  const state=await loadState(ctx),next=structuredClone(state),catalog=await loadCatalog(ctx);const scope=options.project?await canonicalProjectPath(options.project):'global';
   const selected={...(scope==='global'?next.selections:next.projects[scope]?.selections||{})};
   for(const s of data.skills)if(selected[s.id]&&state.releases[selected[s.id]!.releaseKey]!.contentDigest!==s.contentDigest)fail('CONFLICT','本机已选择不同版本，请先卸载/选择独立项目：'+s.id);
   if(options.dryRun)return{skills:data.skills.map(s=>({id:s.id,version:s.version})),scope,bundle:data.format==='skillshelf-bundle',agentPathsWillNotBeCopied:true,dryRun:true};
@@ -73,7 +77,7 @@ async function importLibraryInternal(ctx:Context,input:string,options:MutationOp
   if(scope==='global')next.selections=selected;else next.projects[scope]={...next.projects[scope],root:scope,specPath:join(scope,'skillshelf.json'),lockPath:join(scope,'skillshelf-lock.json'),selections:selected};
   await transact(ctx,state,next,await projectChanges(state,next,scope,catalog.catalogVersion));return{imported,scope,agentPathsCopied:false,next:'运行 enable 或 setup 确认本机Agent路径；本地来源不会自动执行',secretsImported:false};
 }
-export async function migratePanel(ctx:Context,from:string,options:MutationOptions={}):Promise<OperationResult>{return withMutation(ctx,options,()=>migratePanelInternal(ctx,from,options));}
+export async function migratePanel(ctx:Context,from:string,options:MutationOptions={}):Promise<OperationResult>{const fixed=await fixedProjectOptions(options);return withMutation(ctx,fixed,()=>migratePanelInternal(ctx,from,fixed));}
 async function migratePanelInternal(ctx:Context,from:string,options:MutationOptions={}):Promise<OperationResult>{
   const root=resolve(from),profiles=await exists(join(root,'profiles'))?(await readdir(join(root,'profiles'))).map(name=>join(root,'profiles',name)):[root];
   const state=await loadState(ctx),next=structuredClone(state),catalog=await loadCatalog(ctx),imported:Array<{id:string;version:string;files:number;modified:boolean;source:string}>=[],skipped:Array<{name:string;reason:string;source:string}>=[];

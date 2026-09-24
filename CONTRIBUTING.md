@@ -1,6 +1,6 @@
 # 参与 SkillShelf
 
-感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。当前公开预览版为 `0.1.0-preview.2`，包含 18 个 npm 包；确切版本、`next` 标签及下载摘要、原生跨平台和公共安装结果见[公开验证记录](PUBLIC-VERIFICATION.md)。
+感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 85 包 `0.1.0-preview.3` 本地候选：历史 `preview.1` 的六组原生平台 CI 已通过，旧 18 包 `preview.2` 已公开；这两项都不证明本候选已发布或通过跨平台验收。
 
 ## 开发环境
 
@@ -42,7 +42,7 @@ npm test
 python3 tests/terminal-smoke.py --cli packages/cli/dist/index.js --catalog "$SKILLSHELF_TEST_CATALOG" --tmp "$SKILLSHELF_TEST_TMP"
 
 npm pack --workspace packages/cli --ignore-scripts --pack-destination "$work/packages"
-cli_tarball="$work/packages/llx17669475-skillshelf-0.1.0-preview.2.tgz"
+cli_tarball="$work/packages/llx17669475-skillshelf-0.1.0-preview.3.tgz"
 node scripts/audit-cli-package.mjs "$cli_tarball"
 node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_tarball"
 ```
@@ -63,9 +63,7 @@ node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_t
 
 `.github/workflows/ci.yml` 是**测试工作流，不是发布工作流**：在 Linux 上生成并审计一组实际发布候选包；Linux、macOS、Windows 的 Node.js 22/24 原生作业下载同一组包，构建、运行适用测试，并从实际 CLI tarball 安装验证。Linux/macOS 另跑 POSIX PTY 测试，Windows 使用原生命令与 ACL 测试。仓库权限仅为读取，不配置发布凭据，不发布 npm 包，不创建 release。
 
-[2026-09-23 的 `f5fe8f4` 运行](https://github.com/Lilongxi0507/skillshelf/actions/runs/35820368322)中，生产作业及六组原生平台作业均成功；逐平台计数和跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。这些作业测试隔离目录中的核心流程，不证明每种 Agent 已原生加载技能，也不调用真实付费服务商。不要将跳过的检查标记为通过。
-
-`.github/workflows/public-smoke.yml` 是手动触发的公共 npm 安装验证工作流，使用公开 registry 中的 `next` 包，不参与候选包生成。`.github/workflows/publish.yml` 是拟用于后续版本的手动发布工作流：重建并审计确切包，在六组原生作业成功后申请 GitHub OIDC 身份发布。它需要在 npm 为每个目标包单独配置 Trusted Publishing；工作流文件存在不表示 npm 绑定已完成、OIDC 已通过或 provenance 已验证。
+[2026-09-23 的 `f6351a1` 运行](https://github.com/Lilongxi0507/skillshelf/actions/runs/35818945791)中，生产作业及六组原生平台作业均成功；逐平台计数和跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。这些作业测试隔离目录中的核心流程，不证明每种 Agent 已原生加载技能，也不调用真实付费服务商。不要将跳过的检查标记为通过。
 
 ## 修改边界与提交要求
 
@@ -83,4 +81,4 @@ node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_t
 
 一般问题请提供版本、平台、最小合成复现和脱敏错误信息。安全问题按[安全报告说明](docs/security.md#报告安全问题)私密提交，不上传完整 home 或环境转储。
 
-后续预览发布由维护者根据[发布门禁](docs/release.md)发起，使用 `next` 并逐包核对公共内容。普通 PR、CI 成功或生成 publication plan 不授予发布权限。测试 CI 保持只读；手动发布工作流须先完成 npm Trusted Publishing 绑定和实际验证。
+预览发布由维护者根据[发布门禁](docs/release.md)单独处理，共 85 个包（83 个技能、目录和 CLI），使用 `next`。普通 PR、CI 成功或生成 publication plan 不授予发布权限。测试工作流不能被改成自动发布来绕过人工审查。GitNexus 的 PolyForm Noncommercial 许可和 Archify 的品牌素材许可必须在逐包发布前再次核对。

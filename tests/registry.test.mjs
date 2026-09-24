@@ -143,7 +143,9 @@ test('read-only npm check and explicit refresh use bounded fixed source and veri
   assert.equal((await refreshCatalog(ctx)).skills[0].id, 'fixture');
   assert.ok((await lstat(path.join(ctx.home, 'catalogs/cache.json'))).isFile());
   globalThis.fetch = () => { throw new Error('offline network leak'); };
-  assert.equal((await loadCatalog({ ...ctx, offline: true })).skills[0].id, 'fixture');
+  const cached=await loadCatalog({ ...ctx, offline: true });
+  assert.equal(cached.schemaVersion,2);assert.equal(cached.catalogVersion,CLI_VERSION);
+  assert.equal(JSON.parse(await readFile(path.join(ctx.home,'catalogs/cache.json'),'utf8')).version,version);
   assert.equal(calls.length, 4);
 });
 test('catalog requiring a newer CLI is rejected without touching home', async t => {

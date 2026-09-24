@@ -148,31 +148,42 @@ export function assertPublicationMetadata(metadata, api, { repositoryDirectory }
 }
 export function publicationEntry(name, version, file, bytes, api) {
   api.safeRelativePath(file);
-  if (version !== api.CLI_VERSION || !name.startsWith(api.ALLOWED_SCOPE + '/') || !/^skillshelf(?:-catalog|-skill-[a-z0-9]+(?:-[a-z0-9]+)*)?$/u.test(name.slice(api.ALLOWED_SCOPE.length + 1)) || !file.endsWith('.tgz')) throw new Error('Unreviewed release identity');
+  if (version !== api.CLI_VERSION || !name.startsWith(api.ALLOWED_SCOPE + '/') || !/^skillshelf(?:-catalog|-(?:skill|pack)-[a-z0-9]+(?:-[a-z0-9]+)*)?$/u.test(name.slice(api.ALLOWED_SCOPE.length + 1)) || !file.endsWith('.tgz')) throw new Error('Unreviewed release identity');
   return { name, version, file, integrity: integrityFor(bytes), tag: api.RELEASE_CHANNEL, access: 'public', repository: api.REPOSITORY_URL };
 }
-export function publicationPlan(packages, api, complete = false) {
-  if (packages.length !== (complete ? 18 : 17) || new Set(packages.map(row => row.name)).size !== packages.length || new Set(packages.map(row => row.file.toLowerCase())).size !== packages.length) throw new Error('Publication plan requires exact unique reviewed package count');
+export function publicationPlan(packages, api, skillCount, complete = false) {
+  if (!Number.isSafeInteger(skillCount) || skillCount < 1 || packages.length !== skillCount + (complete ? 2 : 1) || new Set(packages.map(row => row.name)).size !== packages.length || new Set(packages.map(row => row.file.toLowerCase())).size !== packages.length) throw new Error('Publication plan requires exact unique reviewed package count');
   for (const row of packages) {
     const expected = publicationEntry(row.name, row.version, row.file, Buffer.alloc(0), api);
     api.validateIntegrity(row.integrity);
     if (api.canonicalJson({ ...expected, integrity: row.integrity }) !== api.canonicalJson(row)) throw new Error('Unreviewed publication plan entry');
   }
-  if (packages.filter(row => row.name.startsWith(`${api.ALLOWED_SCOPE}/skillshelf-skill-`)).length !== 16 || !packages.some(row => row.name === `${api.ALLOWED_SCOPE}/skillshelf-catalog`) || packages.some(row => row.name === `${api.ALLOWED_SCOPE}/skillshelf`) !== complete) throw new Error('Plan requires 16 skills, catalog and the actual CLI only when complete');
+  if (packages.filter(row => row.name.startsWith(`${api.ALLOWED_SCOPE}/skillshelf-pack-`)).length !== skillCount || !packages.some(row => row.name === `${api.ALLOWED_SCOPE}/skillshelf-catalog`) || packages.some(row => row.name === `${api.ALLOWED_SCOPE}/skillshelf`) !== complete) throw new Error('Plan requires every reviewed skill, catalog and the actual CLI only when complete');
   return { schemaVersion: 1, published: false, complete, scope: api.ALLOWED_SCOPE, version: api.CLI_VERSION, tag: api.RELEASE_CHANNEL, access: 'public', repository: api.REPOSITORY_URL, packages };
 }
 export function assertReleaseConfig(config, api) {
-  if (config.scope !== api.ALLOWED_SCOPE || config.version !== api.CLI_VERSION || config.skills?.length !== 16) throw new Error('Reviewed scope/version and exact initial 16 skills required');
-  if (new Set(config.skills.map(row => row.name)).size !== 16) throw new Error('Duplicate configured skill');
+  if (config.scope !== api.ALLOWED_SCOPE || config.version !== api.CLI_VERSION || !Array.isArray(config.skills) || !config.skills.length || config.skills.length > 1000) throw new Error('Reviewed scope/version and skills required');
+  if (new Set(config.skills.map(row => row.name)).size !== config.skills.length || new Set(config.skills.map(row => row.snapshot || row.name)).size !== config.skills.length) throw new Error('Duplicate configured skill or snapshot');
+  if (!Array.isArray(config.categories) || !Array.isArray(config.collections) || !config.categories.length || !config.collections.length || new Set(config.categories.map(row => row.id)).size !== config.categories.length || new Set(config.collections.map(row => row.id)).size !== config.collections.length) throw new Error('Reviewed categories and collections required');
+  for (const category of config.categories) if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(category.id) || typeof category.title !== 'string' || !category.title) throw new Error('Invalid category');
+  for (const collection of config.collections) if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(collection.id) || typeof collection.title !== 'string' || !collection.title || typeof collection.description !== 'string' || !collection.description || !config.skills.some(row => row.collection === collection.id)) throw new Error('Invalid or empty collection');
   for (const row of config.skills) {
     if (typeof row.name !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(row.name)) throw new Error('Unsafe configured skill name');
+    if (row.snapshot !== undefined && (typeof row.snapshot !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(row.snapshot))) throw new Error('Unsafe snapshot directory');
+    if (!config.categories.some(category => category.id === row.category) || !config.collections.some(collection => collection.id === row.collection)) throw new Error('Unknown category or collection');
+    if (!['MIT', 'PolyForm-Noncommercial-1.0.0', 'SEE LICENSE IN skill/THIRD_PARTY_NOTICES'].includes(row.license || 'MIT')) throw new Error('Unreviewed skill license');
     api.safeRelativePath(row.path);
     if (row.source !== 'first-party') {
       const source = config.repositories?.[row.source];
       if (!source || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(source.repository) || !/^[a-f0-9]{40}$/u.test(source.commit)) throw new Error('Source must retain a pinned upstream repository and commit');
+      if (source.requiredNotice !== undefined && (typeof source.requiredNotice !== 'string' || !source.requiredNotice.startsWith('Required Notice: ') || /[\r\n]/u.test(source.requiredNotice))) throw new Error('Invalid required upstream notice');
     }
   }
 }
+export function skillRootFor(definition) {
+  return path.join(root, 'skills', definition.snapshot || definition.name, 'skill');
+}
+export function licenseFor(definition) { return definition.license || 'MIT'; }
 export function catalogNotice(api) {
   return `SkillShelf metadata-only catalog, distributed as ${api.ALLOWED_SCOPE}/skillshelf-catalog.\nDistribution repository: ${api.PROJECT_URL}\nSource repositories, pinned commits and paths are preserved in catalog.json. Original licenses and attribution remain with each complete skill package.\n`;
 }
@@ -204,10 +215,14 @@ export function makeTarball(files) {
   return gzipSync(Buffer.concat(blocks), { level: 9 });
 }
 export function sourceFor(config, definition) {
-  return definition.source === 'first-party' ? { path: definition.path, panelRevision: 'owner-authorized-local-snapshot; see packaged NOTICE original file hashes' } : { ...config.repositories[definition.source], path: definition.path };
+  if (definition.source === 'first-party') return { path: definition.path, panelRevision: 'owner-authorized-local-snapshot; see packaged NOTICE original file hashes' };
+  const { repository, commit } = config.repositories[definition.source];
+  return { repository, commit, path: definition.path };
 }
 export async function sourceAttribution(config, definition) {
-  return definition.source === 'first-party' ? readRegularFile(path.join(root, 'skills', definition.name, 'skill/NOTICE')) : Buffer.from(`Source: https://github.com/${config.repositories[definition.source].repository}\nCommit: ${config.repositories[definition.source].commit}\nPath: ${definition.path}\nComplete selected skill snapshot, with root upstream LICENSE. Distributed by SkillShelf; upstream attribution and licenses remain unchanged.\n`);
+  if (definition.source === 'first-party') return readRegularFile(path.join(skillRootFor(definition), 'NOTICE'));
+  const source = config.repositories[definition.source];
+  return Buffer.from(`Source: https://github.com/${source.repository}\nCommit: ${source.commit}\nPath: ${definition.path}\nComplete selected skill snapshot, with root upstream LICENSE. Distributed by SkillShelf; upstream attribution and licenses remain unchanged.\n${source.requiredNotice ? `${source.requiredNotice}\n` : ''}`);
 }
 export function runtimeFor(name) {
   if (name === 'skillshelf-web-search' || name === 'skillshelf-media-generation') return { kind: 'python', entrypoint: 'scripts/run.py', minimumVersion: '3.10', requiresNetwork: true, providers: name === 'skillshelf-web-search' ? ['search'] : ['image', 'video'], dependencies: [] };
@@ -215,6 +230,6 @@ export function runtimeFor(name) {
 }
 export function catalogFor(config, skills) {
   return { schemaVersion: 1, catalogVersion: config.version, minCliVersion: config.version, scope: config.scope,
-    categories: [{ id: 'design', title: '视觉与界面设计' }, { id: 'engineering', title: '工程与代码' }, { id: 'research', title: '搜索与研究' }, { id: 'media', title: '图片与视频' }],
-    collections: [{ id: 'taste', title: 'Taste 精选', description: '固定上游提交的 13 项完整技能。', skills: config.skills.filter(row => row.collection === 'taste').map(row => row.name) }, { id: 'uiux', title: 'UI/UX Pro Max', description: '完整资源、检索脚本与数据快照。', skills: ['ui-ux-pro-max'] }, { id: 'local-tools', title: '本地执行工具', description: '第一方标准库脚本，服务配置和成品留在本机。', skills: ['skillshelf-web-search', 'skillshelf-media-generation'] }], skills };
+    categories: config.categories,
+    collections: config.collections.map(({ id, title, description }) => ({ id, title, description, skills: config.skills.filter(row => row.collection === id).map(row => row.name) })), skills };
 }

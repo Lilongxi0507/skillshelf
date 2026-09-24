@@ -1,14 +1,20 @@
 import { cp, lstat, realpath, symlink, chmod, readdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
-import type { AgentTarget, Context, Projection, Release, State } from '../types.js';
+import type { AgentTarget, Context, Projection, Release, State, PackMember, SkillManifest } from '../types.js';
 import { canonicalPath, exists, fingerprint, keyFor, within } from './fs.js';
 import { storePath } from './state.js';
-import { verifyTree } from '../validation.js';
+import { verifyTree, digestManifest } from '../validation.js';
 import { fail } from '../errors.js';
 import type { Change } from '../transactions/transaction.js';
 import { targetWorkRoot } from '../transactions/transaction.js';
 
 export function projectionKey(path: string): string { return keyFor(resolve(path)); }
+function projectionManifest(release:Release,memberPath?:string):SkillManifest {
+  if (!memberPath) return release.manifest;
+  const member=release.manifest.members!.find(member=>member.path===memberPath)!;
+  const files=release.manifest.files.filter(file=>file.path.startsWith(memberPath+'/')).map(file=>({...file,path:file.path.slice(memberPath.length+1)}));
+  return {schemaVersion:1,id:member.name,name:member.name,files,contentDigest:digestManifest(files),runtime:member.runtime};
+}
 export function desiredMode(targets:AgentTarget[]): 'auto'|'link'|'copy' {const configured=targets.map(t=>t.mode);if(configured.includes('link')&&configured.includes('copy'))fail('CONFLICT','同一物理目标的链接/复制设置冲突');return configured.includes('copy')?'copy':configured.includes('link')?'link':'auto';}
 export async function checkProjection(ctx: Context, projection: Projection, release: Release): Promise<void> {
   if(!(await exists(projection.path))) fail('CONFLICT','受管技能目录缺失，请先诊断：'+projection.path);
@@ -18,12 +24,12 @@ export async function checkProjection(ctx: Context, projection: Projection, rele
     // Windows junctions may report a \\?\-prefixed link target. Compare the
     // resolved target instead of the spelling returned by readlink.
     const actual=await realpath(projection.path).catch(()=>fail('CONFLICT','受管链接目标不可用：'+projection.path));
-    const expected=await realpath(storePath(ctx,release.contentDigest));
+    const expected=await realpath(join(storePath(ctx,release.contentDigest),projection.memberPath||''));
     if(process.platform==='win32'?actual.toLowerCase()!==expected.toLowerCase():actual!==expected) fail('CONFLICT','受管链接目标已改变：'+projection.path);
     await verifyTree(storePath(ctx,release.contentDigest),release.manifest);
   } else {
     if(!info.isDirectory()||info.isSymbolicLink()) fail('CONFLICT','受管副本类型已改变：'+projection.path);
-    await verifyTree(projection.path,release.manifest).catch(()=>fail('CONFLICT','技能副本有本地修改，保留文件：'+projection.path));
+    await verifyTree(projection.path,projectionManifest(release,projection.memberPath)).catch(()=>fail('CONFLICT','技能副本有本地修改，保留文件：'+projection.path));
   }
 }
 async function makeWritable(path:string):Promise<void>{
@@ -33,7 +39,7 @@ async function makeWritable(path:string):Promise<void>{
   }else await chmod(path,s.isDirectory()?0o700:(s.mode&0o111?0o700:0o600));
   if(s.isDirectory()) for(const name of await readdir(path)) await makeWritable(join(path,name));
 }
-export async function projectionChange(ctx: Context, state: State, next: State, path: string, release: Release | null, targets: AgentTarget[]): Promise<Change | null> {
+export async function projectionChange(ctx: Context, state: State, next: State, path: string, release: Release | null, targets: AgentTarget[], member?:PackMember): Promise<Change | null> {
   const key=projectionKey(path); const previous=state.projections[key];
   if(previous){ const old=state.releases[previous.releaseKey]; if(!old) fail('INTEGRITY','投影版本记录缺失'); await checkProjection(ctx,previous,old); }
   else if(await exists(path)) fail('CONFLICT','已有同名文件不归 SkillShelf 管理，拒绝接管：'+path);
@@ -42,16 +48,15 @@ export async function projectionChange(ctx: Context, state: State, next: State, 
   if(within(dirname(path),storePath(ctx,release.contentDigest))||within(storePath(ctx,release.contentDigest),dirname(path)))fail('CONFLICT','Agent扫描目录不能包含持久store或位于store中');
   const targetIds=[...new Set(targets.map(t=>t.id))].sort();
   const mode=desiredMode(targets);
-  if(previous?.releaseKey===release.key&&(mode==='auto'||previous.mode===mode)){ next.projections[key]={...previous,targetIds}; return null; }
-  const projection:Projection={key,path,releaseKey:release.key,mode:mode==='copy'?'copy':'link',targetIds};
+  if(previous?.releaseKey===release.key&&previous.memberId===member?.id&&(mode==='auto'?previous.mode==='link':previous.mode===mode)){ next.projections[key]={...previous,targetIds}; return null; }
+  const projection:Projection={key,path,releaseKey:release.key,mode:mode==='copy'?'copy':'link',targetIds,...(member?{memberId:member.id,memberPath:member.path}:{})};
   next.projections[key]=projection;
   return {path,workRoot:targetWorkRoot(dirname(path)),expected:await fingerprint(path),prepare:async stage=>{
     if(mode!=='copy'){
-      try{await symlink(storePath(ctx,release.contentDigest),stage,process.platform==='win32'?'junction':'dir');projection.mode='link';return;}
-      catch(error){if(mode==='link'||!['EPERM','EACCES','ENOTSUP','EINVAL','UNKNOWN'].includes((error as NodeJS.ErrnoException).code||''))throw error;}
+      await symlink(join(storePath(ctx,release.contentDigest),member?.path||''),stage,process.platform==='win32'?'junction':'dir');projection.mode='link';return;
     }
-    await cp(storePath(ctx,release.contentDigest),stage,{recursive:true,errorOnExist:true,force:false,dereference:false});
-    await makeWritable(stage); await verifyTree(stage,release.manifest); projection.mode='copy';
+    await cp(join(storePath(ctx,release.contentDigest),member?.path||''),stage,{recursive:true,errorOnExist:true,force:false,dereference:false});
+    await makeWritable(stage); await verifyTree(stage,projectionManifest(release,member?.path)); projection.mode='copy';
   }};
 }
 export async function validateTargetPath(target:AgentTarget):Promise<void>{

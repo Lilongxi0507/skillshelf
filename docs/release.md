@@ -1,26 +1,26 @@
-# 发布记录与后续发布门禁
+# 发布准备与发布门禁
 
 ## 当前状态
 
-当前公开预览版为 **`0.1.0-preview.2`，指定发布通道 `next`**。npm 命名空间为 `@llx17669475`，独立公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
+当前本地发布候选为 **`0.2.0-preview.1`，计划发布通道 `next`**，包含 8 个完整技能包、1 个目录包和 1 个 CLI 包，共 10 个 npm 包。项目所有者已授权使用 npm 命名空间 `@llx17669475`，以及独立公开源码目标 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本次收录不代表已经授权发布。
 
-**截至 2026-09-23，`0.1.0-preview.2` 的 18 个 npm 包均已通过 Trusted Publishing 发布。** [发布运行 `35893524822`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35893524822)已通过打包审计、Linux/macOS/Windows 的 Node.js 22/24 六组作业和 OIDC 发布作业。[公共 smoke `35918416358`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35918416358)也在六组平台作业中通过；公开 registry 的版本、`next`、tarball SHA-512 和 provenance 已逐包回读，详见[公开验证记录](../PUBLIC-VERIFICATION.md)。
+**版本边界：** 历史 CI 与发布记录只覆盖旧候选，不能沿用为本候选验收证据。当前 `0.2.0-preview.1` 已完成 Linux Node 24 隔离回归、PTY 和本地 tarball 审计；Windows/macOS、完整原生 Agent 加载和真实 MCP 会话仍需在发布前补齐。发布后还要从公共注册表回读全部 10 个确切包、标签和摘要。
 
-用户安装命令：
+发布后用户安装命令：
 
 ```bash
 npm install -g @llx17669475/skillshelf@next
 ```
 
-## 18 个包与发布顺序
+## 10 个包与发布顺序
 
 | 顺序 | 包 | 数量 | 内容 |
 |---|---|---:|---|
-| 1 | `@llx17669475/skillshelf-skill-<id>` | 16 | 完整技能快照、manifest、LICENSE/NOTICE；data-only |
+| 1 | `@llx17669475/skillshelf-pack-<id>` | 8 | 完整技能套件快照、manifest、LICENSE/NOTICE；data-only；GitNexus 包为非商业许可 |
 | 2 | `@llx17669475/skillshelf-catalog` | 1 | 精确版本、来源、摘要等元数据，不含技能正文 |
 | 3 | `@llx17669475/skillshelf` | 1 | 编译后的 CLI、bootstrap 元数据、README、LICENSE |
 
-本次各包均使用 `0.1.0-preview.2`，公开访问权限为 `public`，指定 npm dist-tag 为 `next`。首次发布时 npm 自动创建的 `latest` 标签仍可能指向预览版；它不表示已有稳定版，安装说明仍显式使用 `next`。之后 CLI、目录与技能可以独立发版；内容变动必须发布新确切版本，不得覆盖旧版本或复用过期 SRI。
+本候选各包使用 `0.2.0-preview.1`，拟公开访问权限为 `public`，npm dist-tag 为 `next`。CLI、目录与技能包后续可以独立发版；内容变动必须发布新确切版本，不得覆盖旧版本、复用过期 SRI，或误用稳定版 `latest` 标签。GitNexus 的 PolyForm Noncommercial 与 Archify 素材的单独条款必须在发布前逐包审查。
 
 预览 CLI 的目录检查/刷新、程序更新检查应统一跟随 `next`。技能获取始终使用已审目录或项目锁中的确切版本与 SHA-512，不把技能 dist-tag 当成内容身份。
 
@@ -35,12 +35,10 @@ npm install -g @llx17669475/skillshelf@next
 | `README.md`、`CONTRIBUTING.md`、`LICENSE`、`.gitignore`、`.gitattributes` | 公开说明、原有版权、独立工程忽略规则；禁用 Git 换行转换以保留快照原始字节 |
 | `package.json`、`package-lock.json`、`tsconfig.json` | 包身份、锁文件与 TypeScript 配置；无私有 registry 或凭据 |
 | `.github/workflows/ci.yml` | 只读仓库权限，仅验证；无发布步骤、发布凭据或部署权限 |
-| `.github/workflows/public-smoke.yml` | 手动触发，从公共 npm 安装 `next` 并验证原生 CLI 与核心流程；不发布 |
-| `.github/workflows/publish.yml` | 手动触发，重建并核验实际包，六组原生作业通过后用 npm Trusted Publishing 发布；须逐包配置 npm 绑定并单独实测 |
 | `packages/cli/package.json`、`packages/cli/README.md`、`packages/cli/LICENSE` | 核对包名、版本、源码地址与公开 files 清单 |
 | `packages/cli/src/**/*.ts` | CLI 源码；不附带同目录内的内部说明、状态文件或编译输出 |
 | `catalog/README.md`、`catalog/sources.json`、`catalog/bootstrap.json`、`catalog/PROVENANCE.md` | 固定来源与许可记录保留；bootstrap 必须由最终包字节生成，不含本机 artifact 路径 |
-| `skills/<目录收录的16个ID>/skill/**` | 完整已审快照，含隐藏资源、CSV、嵌套 fixtures、LICENSE/NOTICE；不是任意新增技能目录 |
+| `skills/<sources.json 中列出的快照目录>/skill/**` | 83 项完整已审快照，含隐藏资源、CSV、嵌套 fixtures、LICENSE/NOTICE；不是任意新增技能目录 |
 | `scripts/lib.mjs`、`scripts/pack-skills.mjs`、`scripts/copy-catalog.mjs`、`scripts/validate-catalog.mjs`、`scripts/prepare-release.mjs`、`scripts/audit-cli-package.mjs` | 独立可运行的维护工具，不读取外围工程；保留针对受保护目录的输出安全检查 |
 | `tests/*.test.mjs`、`tests/terminal-smoke.py` | 纯测试源码，模拟凭据不是运行凭据；临时根可配置，无私有环境依赖 |
 | `docs/release.md`、`docs/security.md` | 公开发布与安全说明 |
@@ -66,41 +64,31 @@ npm install -g @llx17669475/skillshelf@next
 正确顺序为：
 
 1. `npm ci --ignore-scripts`，再 `npm run build`、`npm run validate`。
-2. `node scripts/pack-skills.mjs --output "<新的绝对输出目录>" --write-bootstrap`，产生 16 个技能包、目录包及本地开发目录。
+2. `node scripts/pack-skills.mjs --output "<新的绝对输出目录>" --write-bootstrap`，产生 8 个完整技能包、目录包及本地开发目录。
 3. 重新执行 `node scripts/copy-catalog.mjs`、`npm run validate`，确保 CLI 使用新 bootstrap。
 4. 用 `--development` 校验生成的 `catalog.development.json`；设置 `SKILLSHELF_TEST_TMP` 与 `SKILLSHELF_TEST_CATALOG` 后执行完整 Node 测试及 POSIX PTY 测试。不设置这些变量会跳过部分关键覆盖。
 5. `npm pack --workspace packages/cli --ignore-scripts --pack-destination "<同一输出目录>"`，先生成实际 CLI tarball。
 6. `node scripts/audit-cli-package.mjs "<实际 CLI tgz 的绝对路径>"`，检查真实 tarball，而不是只看 `npm pack --dry-run`。
-7. `node scripts/prepare-release.mjs --output "<同一输出目录>" --cli-tarball "<实际 CLI tgz 的绝对路径>"`，校验全部 18 包并生成最终计划与检查清单，不登录或发布。`--cli-tarball` 必填，不能在 CLI 打包前执行。
+7. `node scripts/prepare-release.mjs --output "<同一输出目录>" --cli-tarball "<实际 CLI tgz 的绝对路径>"`，校验全部 10 包并生成最终计划与检查清单，不登录或发布。`--cli-tarball` 必填，不能在 CLI 打包前执行。
 
-`pack-skills` 从完整快照生成 tarball，读取实际压缩包校验 manifest、SRI、文件大小、权限与元数据，并生成只含 17 个数据/目录包的 `publication-plan.data.json`。`prepare-release` 加入经审计的实际 CLI tarball，生成全部 18 包的最终 `publication-plan.json`。改动包名、版本、NOTICE、文件或 tar 包装都可能改变 SRI，必须重新生成。**不要仅改 bootstrap 的 scope 字符串，也不要手填摘要。**
+`pack-skills` 从完整快照生成 tarball，读取实际压缩包校验 manifest、SRI、文件大小、权限与元数据，并生成 8 个技能包与目录包的 `publication-plan.data.json`。`prepare-release` 加入经审计的实际 CLI tarball，生成全部 10 包的最终 `publication-plan.json`。改动包名、版本、NOTICE、文件或 tar 包装都可能改变 SRI，必须重新生成。**不要仅改 bootstrap 的 scope 字符串，也不要手填摘要。**
 
 最终 CLI 包还应安装到临时、独立的 npm prefix，验证真正的 `skillshelf` bin、非空且正确的 `--version`、JSON list、离线按需安装和 `verify`。这一步需要依赖网络或可用的 npm 缓存，不能称为完全离线安装器。
 
-## 首发核验与后续版本门禁
-
-前五项是每次新版本均须重新执行的门禁，故保留未勾选；已勾选的项目记录 `0.1.0-preview.2` 的实际结果，不自动适用于后续版本。
+## 发布前逐项门禁
 
 - [ ] 所有包身份、源码链接、固定命名空间白名单、第一方执行校验、锁文件、测试与 `next` 更新通道一致。
 - [ ] 所有来源 commit、原始版权、LICENSE/NOTICE、第三方数据和嵌入资源许可均已复核；不把第三方内容重新改许可证。
 - [ ] 独立公开源码只含白名单文件，静态敏感扫描和人工审查完成；没有真密钥、内部部署配置或工作数据；维护工具的拒写路径与合法来源归属不属于凭据。
-- [ ] 最终 16 个技能包、目录包与 CLI 包均由最终源码生成，bootstrap 指向确切 artifact 字节；公共内容中没有 `localArtifact`。
+- [ ] 最终 8 个完整技能包、目录包与 CLI 包均由最终源码生成，bootstrap 指向确切 artifact 字节；公共内容中没有 `localArtifact`。
 - [ ] 安装、构建、Node 测试、关键生命周期/崩溃恢复测试、PTY、实际包审计和真正 npm bin 验证已按实际环境记录结果。
-- [x] [`c048be9` 的 Linux、macOS、Windows 原生 CI](https://github.com/Lilongxi0507/skillshelf/actions/runs/35893524822)通过 Node.js 22/24 构建、适用测试与同一实际 CLI tarball 的安装验证；公共 npm smoke 运行 `35918416358` 的六组作业也通过，逐平台结果见[公开验证记录](../PUBLIC-VERIFICATION.md)。后续源码或打包内容变化须重新验证。
-- [x] 该次原生 CI 覆盖 macOS 的 POSIX 权限与链接、Windows 的私有 ACL、`.cmd` 入口与受管复制/链接，以及跨平台中断恢复。POSIX 专用终端及夹具测试在 Windows 跳过；各 Agent 原生加载及真实付费 provider 调用未实测，在预览说明中明确标注。
-- [x] 发布者按 16 个技能数据包 → 目录 → CLI 的顺序通过 `publish.yml` 发布全部 18 个包，使用 GitHub OIDC、`--access public --tag next`，没有长期 npm token。
-- [x] 从公共 registry 回读全部 18 个包的确切版本、`next` 标签、tarball SHA-512 和 provenance；CLI 从公共 npm 安装后真实 bin 返回 `0.1.0-preview.2`。
-- [x] 公共 smoke 在 Linux、macOS、Windows 的 Node.js 22/24 上从 npm 安装并执行核心流程。
+- [ ] 针对 `0.2.0-preview.1` 的 Linux、macOS、Windows 原生 CI 和安装验收；历史 [`preview.1` 记录](../PUBLIC-VERIFICATION.md)不能替代本候选验证。Linux 隔离回归、PTY 与本地 tarball 已有记录，其他平台仍待执行。
+- [ ] 针对新增技能的目标 Agent 发现、跨技能引用及外部 CLI/MCP 前提分别验证；未验证的运行模式不得标成已通过。
+- [ ] npm 账号与命名空间权限已由维护者实际核对，认证材料只存在授权环境，不进入源码、包、命令日志或截图。
+- [ ] 发布者取得本候选发布授权后，手动发布 8 个技能包 → 目录 → CLI，全部显式指定 `--access public --tag next`；没有自动发布工作流。
+- [ ] 从公共 registry 回读全部 10 个包的精确版本和 dist-tag，下载 artifact 核对 SHA-512、逐文件清单及实际 CLI 安装行为后，再更新“已发布”状态。
 
-现有 `.github/workflows/ci.yml` 保持只读，无 `id-token: write` 或 npm 发布步骤。新增的 `.github/workflows/public-smoke.yml` 是手动公共安装验证；`.github/workflows/publish.yml` 是单独的手动发布流程，只有其发布作业申请 `id-token: write`，不使用长期 npm token。工作流文件本身不能证明 npm 端已完成绑定；若使用 provenance，必须真实生成并验证后再描述，不能用摘要校验冒充签名验证。
-
-### 为后续版本配置 npm Trusted Publishing
-
-1. 维护者在 npm 官方包设置中，逐一为需要由工作流发布的包添加 GitHub Actions 受信任发布者。当前有 16 个技能包、1 个目录包和 1 个 CLI 包，共 18 个独立包身份；绑定目标为 GitHub 用户 `Lilongxi0507`、仓库 `skillshelf`、工作流文件 `publish.yml`。若新增技能包或只发布其中一部分包，仍须确认每个目标包的绑定。
-2. 提交并审查手动触发的 `.github/workflows/publish.yml`。它必须从受审的 `main` 分支构建新版本，通过包审计和 Linux/macOS/Windows 原生作业，再用 GitHub OIDC 发布冻结包；不得加入 npm 长期 token 或跳过审计。
-3. 新版本发布前重新生成并核对 `publication-plan.json`，确认所有目标确切版本未与公共 registry 冲突、预期标签为 `next`。维护者手动触发工作流并核对日志、全部公共确切版本、`next` 标签、下载摘要和 provenance。当前 OIDC 路径已经用 `0.1.0-preview.2` 实际跑通；账号策略、仓库/工作流名称变化或新增包仍可能需要维护者重新确认配置。
-
-配置 npm 包的受信任发布者是维护者的一次性账号操作；完成且实际跑通后，后续同一包使用该工作流发布通常无需逐包完成浏览器 2FA。它不等于永久免验证，也不自动授权未来版本或新增包。
+CI 不配置发布 secret、`id-token: write` 或 npm 发布权限，不自动发布。发布认证机制由维护者按 npm 当时规则单独核实；若使用签名或 provenance，必须真实生成/验证后再描述，不能用摘要校验冒充签名验证。
 
 ## 旧占位版与回滚
 

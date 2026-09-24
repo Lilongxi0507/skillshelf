@@ -61,7 +61,7 @@ jobs:
           npm run validate
           node scripts/validate-catalog.mjs --catalog "$SKILLSHELF_TEST_CATALOG" --development
 
-      - name: Pack the actual CLI and verify all 18 release archives
+      - name: Pack the actual CLI and verify all reviewed release archives
         run: |
           set -euo pipefail
           npm pack --workspace packages/cli --ignore-scripts --pack-destination "$SKILLSHELF_CI_TMP/packages"

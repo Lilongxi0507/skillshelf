@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, open, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import type { Catalog, CatalogEntry, FileEntry, RuntimeDeclaration, SkillManifest } from './types.js';
+import type { Catalog, CatalogEntry, FileEntry, RuntimeDeclaration, SkillManifest, PackMember } from './types.js';
 import { parseDocument } from 'yaml';
 import { NPM_SCOPE } from './release.js';
 
@@ -119,26 +119,55 @@ function validateFiles(value: unknown): FileEntry[] {
 export function digestManifest(files: FileEntry[]): string {
   return createHash('sha256').update(canonicalJson(validateFiles(files))).digest('hex');
 }
+export function digestPackManifest(manifest: Pick<SkillManifest,'schemaVersion'|'id'|'name'|'files'|'runtime'|'members'>): string {
+  if (manifest.schemaVersion !== 2) return digestManifest(manifest.files);
+  return createHash('sha256').update(canonicalJson({schemaVersion:2,id:manifest.id,name:manifest.name,files:validateFiles(manifest.files),runtime:manifest.runtime,members:validateMembers(manifest.members)})).digest('hex');
+}
+export function validateMembers(value: unknown): PackMember[] {
+  if (!Array.isArray(value) || !value.length || value.length > 1000) fail('Pack requires members');
+  const members = (value as unknown[]).map(value => {
+    const row = record(value, ['id', 'name', 'path', 'legacyId', 'title', 'description', 'useWhen', 'examples', 'category', 'subcategory', 'tags', 'purpose', 'stack', 'dependencies', 'license', 'source', 'runtime'], 'pack member');
+    const source = record(row.source, ['repository', 'commit', 'path', 'panelRevision', 'url'], 'source');
+    for (const field of Object.keys(source)) text(source[field], 'source field');
+    if (source.path !== undefined) safeRelativePath(String(source.path));
+    if (source.repository !== undefined && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(String(source.repository))) fail('Invalid source repository');
+    if (source.commit !== undefined && !/^[a-f0-9]{40}$/.test(String(source.commit))) fail('Source commit must be pinned');
+    if (source.url !== undefined) { const url=new URL(String(source.url));if(url.protocol!=='https:'||url.username||url.password)fail('Invalid source URL'); }
+    const member: PackMember = { id: name(row.id), name: name(row.name), legacyId: name(row.legacyId), path: safeRelativePath(text(row.path, 'member path')), title: text(row.title, 'title'), description: text(row.description, 'description'), useWhen: text(row.useWhen, 'useWhen'), examples: strings(row.examples, 'examples'), category: name(row.category), subcategory: name(row.subcategory), tags: strings(row.tags, 'tags'), purpose: text(row.purpose, 'purpose'), stack: strings(row.stack, 'stack'), dependencies: strings(row.dependencies, 'dependencies'), license: text(row.license, 'license'), source, runtime: validateRuntime(row.runtime) };
+    if (member.id !== member.name) fail('Member id/name mismatch');
+    return member;
+  });
+  for (const field of ['id', 'legacyId', 'path'] as const) if (new Set(members.map(member => member[field].toLowerCase())).size !== members.length) fail('Duplicate pack member identity');
+  for (const member of members) if (members.some(other => other !== member && member.path.startsWith(other.path + '/'))) fail('Overlapping member roots');
+  return members;
+}
 export function validateManifest(value: unknown): SkillManifest {
-  const row = record(value, ['schemaVersion', 'id', 'name', 'files', 'contentDigest', 'runtime'], 'manifest');
-  if (row.schemaVersion !== 1) fail('Unsupported manifest schema');
-  const result: SkillManifest = { schemaVersion: 1, id: name(row.id), name: name(row.name), files: validateFiles(row.files), contentDigest: digest(row.contentDigest), runtime: validateRuntime(row.runtime) };
+  const row = record(value, ['schemaVersion', 'id', 'name', 'files', 'contentDigest', 'runtime', 'members'], 'manifest');
+  if (row.schemaVersion !== 1 && row.schemaVersion !== 2) fail('Unsupported manifest schema');
+  const result: SkillManifest = { schemaVersion: row.schemaVersion as 1 | 2, id: name(row.id), name: name(row.name), files: validateFiles(row.files), contentDigest: digest(row.contentDigest), runtime: validateRuntime(row.runtime) };
   if (result.id !== result.name) fail('Skill id/name mismatch');
-  if (!result.files.some(file => file.path === 'SKILL.md') || !result.files.some(file => /^LICENSE(?:\.md|\.txt)?$/i.test(file.path))) fail('Skill requires SKILL.md and LICENSE');
+  if (row.schemaVersion === 2) {
+    result.members = validateMembers(row.members);
+    for (const member of result.members) {
+      if (!result.files.some(file => file.path === member.path + '/SKILL.md') || !result.files.some(file => file.path === member.path + '/LICENSE')) fail('Every member requires SKILL.md and LICENSE');
+      if (member.runtime.entrypoint && !result.files.some(file => file.path === member.path + '/' + member.runtime.entrypoint)) fail('Missing member entrypoint');
+    }
+  } else if (row.members !== undefined || !result.files.some(file => file.path === 'SKILL.md')) fail('Legacy skill requires SKILL.md without pack members');
+  if (!result.files.some(file => /^LICENSE(?:\.md|\.txt)?$/i.test(file.path))) fail('Skill requires LICENSE');
   if (result.runtime.entrypoint && !result.files.some(file => file.path === result.runtime.entrypoint)) fail('Missing declared runtime entrypoint');
-  if (digestManifest(result.files) !== result.contentDigest) fail('Manifest content digest mismatch');
+  if ((result.schemaVersion === 2 ? digestPackManifest(result) : digestManifest(result.files)) !== result.contentDigest) fail('Manifest content digest mismatch');
   return result;
 }
 export function validateCatalog(value: unknown): Catalog {
   const row = record(value, ['schemaVersion', 'catalogVersion', 'minCliVersion', 'scope', 'categories', 'collections', 'skills'], 'catalog');
-  if (row.schemaVersion !== 1 || row.scope !== ALLOWED_SCOPE) fail('Untrusted catalog schema or namespace');
+  if (![1, 2].includes(Number(row.schemaVersion)) || row.scope !== ALLOWED_SCOPE) fail('Untrusted catalog schema or namespace');
   const version = text(row.catalogVersion, 'catalog version', 100), minimum = text(row.minCliVersion, 'minimum CLI version', 100);
   if (!EXACT_VERSION.test(version) || !EXACT_VERSION.test(minimum)) fail('Catalog requires exact versions');
   if (!Array.isArray(row.categories) || !Array.isArray(row.collections) || !Array.isArray(row.skills) || row.skills.length > 1000) fail('Invalid catalog lists');
-  const categories = (row.categories as unknown[]).map(value => { const item = record(value, ['id', 'title'], 'category'); return { id: name(item.id), title: text(item.title, 'title') }; });
+  const categories = (row.categories as unknown[]).map(value => { const item = record(value, ['id', 'title', 'children'], 'category'); const category: Catalog['categories'][number] = { id: name(item.id), title: text(item.title, 'title') }; if (item.children !== undefined) { if (!Array.isArray(item.children)) fail('Invalid subcategories'); category.children = (item.children as unknown[]).map(value => { const child = record(value, ['id', 'title'], 'subcategory'); return { id: name(child.id), title: text(child.title, 'title') }; }); } return category; });
   const collections = (row.collections as unknown[]).map(value => { const item = record(value, ['id', 'title', 'description', 'skills'], 'collection'); return { id: name(item.id), title: text(item.title, 'title'), description: text(item.description, 'description'), skills: strings(item.skills, 'skills').map(name) }; });
   const skills: CatalogEntry[] = (row.skills as unknown[]).map(value => {
-    const item = record(value, ['id', 'name', 'title', 'description', 'useWhen', 'examples', 'category', 'tags', 'collection', 'license', 'source', 'status', 'runtime', 'packageName', 'version', 'integrity', 'contentDigest', 'fileCount', 'unpackedSize', 'localArtifact'], 'catalog entry');
+    const item = record(value, ['id', 'name', 'title', 'description', 'useWhen', 'examples', 'category', 'tags', 'collection', 'license', 'source', 'status', 'runtime', 'packageName', 'version', 'integrity', 'contentDigest', 'fileCount', 'unpackedSize', 'localArtifact', 'kind', 'members'], 'catalog entry');
     const source = record(item.source, ['repository', 'commit', 'path', 'panelRevision', 'url'], 'source');
     for (const field of Object.keys(source)) text(source[field], 'source field');
     if (source.repository !== undefined && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(String(source.repository))) fail('Invalid source repository');
@@ -146,14 +175,15 @@ export function validateCatalog(value: unknown): Catalog {
     if (source.path !== undefined) safeRelativePath(String(source.path));
     if (source.url !== undefined) { const url = new URL(String(source.url)); if (url.protocol !== 'https:' || url.username || url.password) fail('Invalid source URL'); }
     const result: CatalogEntry = { id: name(item.id), name: name(item.name), title: text(item.title, 'title'), description: text(item.description, 'description'), useWhen: text(item.useWhen, 'useWhen'), examples: strings(item.examples, 'examples'), category: name(item.category), tags: strings(item.tags, 'tags'), collection: name(item.collection), license: text(item.license, 'license'), source, status: item.status as CatalogEntry['status'], runtime: validateRuntime(item.runtime), packageName: text(item.packageName, 'package name', 180), version: text(item.version, 'version', 100), integrity: validateIntegrity(item.integrity), contentDigest: digest(item.contentDigest), fileCount: integer(item.fileCount, LIMITS.files, 'file count', 1), unpackedSize: integer(item.unpackedSize, LIMITS.unpackedBytes, 'unpacked size', 1) };
-    if (result.id !== result.name || result.packageName !== `${ALLOWED_SCOPE}/skillshelf-skill-${result.name}` || !EXACT_VERSION.test(result.version) || !['recommended', 'stable', 'legacy', 'experimental'].includes(result.status)) fail('Invalid catalog identity/version/status');
+    if (item.kind !== undefined || item.members !== undefined) { if (row.schemaVersion !== 2 || item.kind !== 'pack') fail('Pack requires schema 2'); result.kind = 'pack'; result.members = validateMembers(item.members); }
+    if (result.id !== result.name || result.packageName !== `${ALLOWED_SCOPE}/skillshelf-${result.kind === 'pack' ? 'pack' : 'skill'}-${result.name}` || !EXACT_VERSION.test(result.version) || !['recommended', 'stable', 'legacy', 'experimental'].includes(result.status)) fail('Invalid catalog identity/version/status');
     if (item.localArtifact !== undefined) result.localArtifact = safeRelativePath(text(item.localArtifact, 'local artifact'));
     return result;
   });
   for (const values of [categories, collections, skills]) if (new Set(values.map(item => item.id)).size !== values.length) fail('Duplicate catalog ID');
   for (const entry of skills) { if (!categories.some(item => item.id === entry.category) || !collections.some(item => item.id === entry.collection && item.skills.includes(entry.id))) fail('Unknown category or collection membership'); }
   for (const group of collections) if (new Set(group.skills).size !== group.skills.length || group.skills.some(id => !skills.some(skill => skill.id === id))) fail('Invalid collection members');
-  return { schemaVersion: 1, catalogVersion: version, minCliVersion: minimum, scope: ALLOWED_SCOPE, categories, collections, skills };
+  return { schemaVersion: row.schemaVersion as 1 | 2, catalogVersion: version, minCliVersion: minimum, scope: ALLOWED_SCOPE, categories, collections, skills };
 }
 export function validatePublicCatalog(value: unknown): Catalog {
   const result = validateCatalog(value);

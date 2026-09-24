@@ -2,13 +2,13 @@
 
 ## 发布状态
 
-本目录对应 `0.1.0-preview.2`，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。预览通道是 `next`，不是稳定版 `latest`；可安装性以 npm 公共注册表和[公开验证记录](https://github.com/Lilongxi0507/skillshelf/blob/main/PUBLIC-VERIFICATION.md)为准。
+本目录对应尚未发布的 10 包 `0.2.0-preview.1` 本地候选，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。历史发布与标签记录不代表本候选；公共注册表和跨平台验证仍须针对新候选重新核对。现有[公开验证记录](../PUBLIC-VERIFICATION.md)只覆盖历史 `preview.1` CI。
 
-首批内容由 18 个包组成：
+当前候选由 10 个包组成：
 
 - CLI：`@llx17669475/skillshelf`。
 - 元数据目录：`@llx17669475/skillshelf-catalog`。
-- 16 个完整技能包：`@llx17669475/skillshelf-skill-<技能ID>`。
+- 8 个完整技能包：`@llx17669475/skillshelf-pack-<包ID>`，合计 83 个成员。
 
 本地生成的摘要不代表 npm 包可下载；使用前应核对公共注册表中的确切版本、标签与 artifact。
 
@@ -17,13 +17,18 @@
 | 路径 | 用途 |
 |---|---|
 | `sources.json` | 已审来源 commit、技能映射、分类与展示信息 |
+| `curation.mjs` | 12 个一级分类、二级分类和逐成员中文用途、示例、依赖与技术栈 |
 | `bootstrap.json` | 自动生成的公共元数据，随 CLI 提供初始目录 |
 | `PROVENANCE.md` | 上游来源、原始版权、许可证和快照完整性记录 |
-| `../skills/<id>/skill/` | 完整技能快照，包含正文、脚本、数据、引用资源和 LICENSE/NOTICE |
+| `../skills/<快照目录>/skill/` | 完整技能快照，包含正文、脚本、数据、引用资源和 LICENSE/NOTICE；部分上游目录名与公开技能 ID 不同，映射见 `sources.json` |
 
 公共目录不包含技能正文、包字节、凭据、provider 配置、`localArtifact` 或本机路径。第一方源代码使用 MIT；第三方技能、字体、数据等继续保留其原始版权、许可与来源记录。不能为了缩小包而删去快照内已声明的资源或许可证。
 
-首批内容为 13 项 Taste、UI/UX Pro Max 以及 2 个第一方工具。UI/UX Pro Max 保留 **74 个文件**，包括源快照的脚本、CSV/JSON、references、测试资源和根许可证。完整文件数不是所有文件都属于同一许可证的声明，嵌入资源仍按其许可记录处理。
+当前候选包含原有 16 项，以及 Archify 1 项、Matt Pocock 38 项、Superpowers 15 项、GitNexus 13 项。UI/UX Pro Max 保留 **74 个文件**；Archify 保留 190 个上游文件，并随包加入 `THIRD_PARTY_NOTICES`，记录 107 个品牌标志的来源和逐项许可（其中 Vue 为 CC-BY-NC-SA-4.0）。GitNexus 为 PolyForm Noncommercial，仅适用于许可允许的非商业用途。完整文件数不表示所有资源使用同一许可证。
+
+schema 2 将 Taste 13、Matt Pocock 38、Superpowers 15、GitNexus 13 以及四个单成员包作为安装单位。聚合目录保留每个成员的上游路径，原生 Agent 链接指向共享 store 中的成员目录；自动模式不退化为副本。显式 copy 是非共享兼容模式。
+
+旧 schema 1 账本仍可读取，加载不迁移、不下载、不删除。显式父包迁移先预览已有成员、缺失成员、版本差异与受管投影转换，再以单个事务更新选择。完整文件、子技能、依赖及运行时差异通过 core 的 `previewPackChange` / `comparePackManifests` 获取。
 
 ## 内容身份与获取
 
@@ -73,9 +78,9 @@ node scripts/prepare-release.mjs --output "<同一输出目录>" --cli-tarball "
 
 输出目录应由当前用户控制，位于源码和实际用户数据之外，且不使用已有 artifact 覆盖。脚本会准备：
 
-- 16 个技能 tarball 与 manifest；
+- 8 个完整包 tarball 与聚合 manifest；
 - 公共目录和本地开发目录；
-- 元数据目录 tarball 与 17 包数据计划 `publication-plan.data.json`；
-- CLI 经 npm pack 打包后，由 `prepare-release --cli-tarball` 校验生成全部 18 包的 `publication-plan.json` 与人工检查清单。
+- 元数据目录 tarball 与 9 包数据计划 `publication-plan.data.json`；
+- CLI 经 npm pack 打包后，由 `prepare-release --cli-tarball` 校验生成全部 10 包的 `publication-plan.json` 与人工检查清单。
 
-这些步骤只准备、验证本地文件，不登录或发布。最终检查必须使用实际 CLI tarball，不能在 CLI 打包前执行或省略 `--cli-tarball`。完整开发步骤见[贡献指南](../CONTRIBUTING.md)，18 包发布顺序及公开源码白名单见[发布门禁](../docs/release.md)。
+这些步骤只准备、验证本地文件，不登录或发布。最终检查必须使用实际 CLI tarball，不能在 CLI 打包前执行或省略 `--cli-tarball`。完整开发步骤见[贡献指南](../CONTRIBUTING.md)，10 包发布顺序及公开源码白名单见[发布门禁](../docs/release.md)。

@@ -1,13 +1,16 @@
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
-import { resolve } from 'node:path';
 import type { Context, CatalogEntry, AgentId } from '../types.js';
-import { loadCatalog } from '../catalog/catalog.js';
+import { loadCatalog, searchCatalog } from '../catalog/catalog.js';
 import { loadState } from '../store/state.js';
-import { detectAgents, resolveAgentTarget, agentHints } from '../agents/agents.js';
+import { detectAgents, resolveAgentTarget, agentHints, canonicalProjectPath } from '../agents/agents.js';
 import { addAgent, checkUpdates, doctor, installSkills, listSkills, localStatus, removeSkills, rollbackSkill, toggleSkills, updateSkills } from '../manager.js';
 import { addProvider, listProviders, removeProvider, type ProviderInput } from '../runtime/runtime.js';
 import { exportLibrary, importLibrary } from '../commands/portable.js';
+import { listDrafts } from '../authoring.js';
+import { listProfiles } from '../profiles.js';
+import { diagnoseMcp, listMcp } from '../mcp/manager.js';
+import { listEnrollments } from '../agents/onboarding.js';
 import { SkillShelfError, errorMessage, fail } from '../errors.js';
 import { formatResult } from './format.js';
 
@@ -30,7 +33,7 @@ export async function providerWizard(ctx:Context):Promise<unknown>{
   return addProvider(ctx,input);
 }
 async function selectTargets(ctx:Context,project?:string):Promise<string[]>{
-  const state=await loadState(ctx),scope=project?resolve(project):'global';const registered=Object.values(state.targets).filter(t=>t.scope===scope);
+  const state=await loadState(ctx),scope=project?await canonicalProjectPath(project):'global';const registered=Object.values(state.targets).filter(t=>t.scope===scope);
   const detected=await detectAgents();
   const choices=registered.map(t=>({value:t.id,label:t.label,hint:t.path}));
   for(const t of detected)if(!registered.some(r=>r.agent===t.agent))choices.push({value:t.agent,label:t.label,hint:'检测到 · 安装前确认路径'});
@@ -40,10 +43,14 @@ async function selectTargets(ctx:Context,project?:string):Promise<string[]>{
 export async function installWizard(ctx:Context,setup=false):Promise<void>{
   const catalog=await loadCatalog(ctx),state=await loadState(ctx);
   const scope=answer(await p.select({message:'安装范围',options:[{value:'global',label:'全局共享技能库（推荐）',hint:'同一系统用户的多个Agent共用'},{value:'project',label:'当前项目',hint:'固定项目版本，不改变全局'}]}));
-  const project=scope==='project'?resolve(answer(await p.text({message:'项目目录',defaultValue:process.cwd()}))):undefined;
+  const project=scope==='project'?await canonicalProjectPath(answer(await p.text({message:'项目目录',defaultValue:process.cwd()}))):undefined;
   const category=answer(await p.select({message:'浏览分类',options:[{value:'',label:'全部分类'},...catalog.categories.map(c=>({value:c.id,label:c.title}))]}));
   const entries=catalog.skills.filter(e=>!category||e.category===category);
-  const selected=answer(await p.autocompleteMultiselect({message:'搜索并选择技能 · 空格多选，回车确认',options:entries.map(e=>({value:e.id,label:cleanText(e.title),hint:cleanText(`${e.id} · ${e.fileCount}文件 · ${e.status}${state.selections[e.id]?' · 已安装':''}`)})),required:true}));
+  const selected=answer(await p.autocompleteMultiselect({message:'搜索并选择技能 · 空格多选，回车确认',options:entries.map(e=>({value:e.id,label:cleanText(e.title),hint:cleanText(`${e.id} · ${e.fileCount}文件 · ${e.status}${state.selections[e.id]?' · 已安装':''}`)})),filter:(query,option)=>{
+    if(!query.trim())return true;
+    const matches=new Set(searchCatalog(catalog,query,category?{category}:{}).map(entry=>entry.id));
+    return matches.has(String(option.value));
+  },required:true}));
   const targets=await selectTargets(ctx,project);
   const preview=await installSkills(ctx,selected,{agents:targets,project,dryRun:true});
   display(preview,'完整包与目标预览');
@@ -60,9 +67,10 @@ export async function menu(ctx:Context):Promise<void>{
   for(;;){
     try{
       const state=await loadState(ctx);const choice=answer(await p.select({message:`全局库 ${Object.keys(state.selections).length} 项 · ${Object.keys(state.targets).length} 个Agent目标`,options:[
-        {value:'install',label:'浏览与安装技能'},{value:'installed',label:'已安装技能'},{value:'agents',label:'Agent 接入管理'},
-        {value:'updates',label:'检查更新与回滚'},{value:'portable',label:'导入 / 导出'},{value:'providers',label:'本地服务配置'},
-        {value:'doctor',label:'诊断与校验'},{value:'exit',label:'退出'}]}));
+        {value:'install',label:'发现技能包'}, {value:'installed',label:'我的共享库'}, {value:'agents',label:'Agent 接入'},
+        {value:'mcp',label:'MCP 管理'}, {value:'profiles',label:'任务组合'}, {value:'author',label:'创作技能'},
+        {value:'updates',label:'更新与回滚'}, {value:'portable',label:'导入 / 导出'}, {value:'providers',label:'本地服务配置'},
+        {value:'maintenance',label:'设置与维护'}, {value:'doctor',label:'诊断与校验'}, {value:'exit',label:'退出'}]}));
       if(choice==='exit')break;
       if(choice==='install')await installWizard(ctx);
       if(choice==='installed'){
@@ -73,6 +81,10 @@ export async function menu(ctx:Context):Promise<void>{
         const agent=answer(await p.select({message:'新增目标或返回',options:[{value:'back',label:'返回'},...(['claude-code','codex','opencode','dsh','cursor','hermes','universal','custom']as const).map(id=>({value:id,label:id}))]}));
         if(agent!=='back'){const path=answer(await p.text({message:'自定义技能目录（留空使用原生默认）',validate:v=>agent==='custom'&&!v?'自定义Agent必须指定目录':undefined}));const target=await resolveAgentTarget(agent as AgentId,{path:path||undefined});display(target,'目标预览');if(await confirmation('确认注册此目标？注册本身不安装技能。'))display(await addAgent(ctx,agent as AgentId,{path:path||undefined}));}
       }
+      if(choice==='mcp'){display(await listMcp(ctx),'共享 MCP 定义');display(await diagnoseMcp(ctx),'MCP 只读诊断');}
+      if(choice==='profiles')display(await listProfiles(ctx),'任务组合');
+      if(choice==='author')display(await listDrafts(ctx),'本机创作草稿');
+      if(choice==='maintenance'){display(await listEnrollments(ctx),'接入证据');display(await localStatus(ctx),'设置与维护状态');}
       if(choice==='updates'){
         const action=answer(await p.select({message:'版本管理',options:[{value:'check',label:'只读检查更新'},{value:'update',label:'预览并更新未固定技能'},{value:'rollback',label:'回滚已保留版本'},{value:'back',label:'返回'}]}));
         if(action==='check')display(await checkUpdates(ctx));

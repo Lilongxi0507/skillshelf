@@ -83,7 +83,7 @@ jobs:
           npm run validate
           node scripts/validate-catalog.mjs --catalog "$SKILLSHELF_CI_TMP/packages/catalog.development.json" --development
 
-      - name: Pack and audit all 18 archives
+      - name: Pack and audit all 10 archives
         run: |
           set -euo pipefail
           artifact="$(npm pack --workspace packages/cli --ignore-scripts --pack-destination "$SKILLSHELF_CI_TMP/packages" --silent)"
@@ -273,12 +273,12 @@ jobs:
               plan.schemaVersion !== 1 || plan.complete !== true || plan.published !== false ||
               plan.scope !== '@llx17669475' || plan.version !== version || plan.tag !== 'next' ||
               plan.access !== 'public' || plan.repository !== 'https://github.com/Lilongxi0507/skillshelf.git' ||
-              plan.packages?.length !== 18) throw new Error('Unexpected publication plan');
+              plan.packages?.length !== 10) throw new Error('Unexpected publication plan');
 
           const names = new Set();
           for (const [index, row] of plan.packages.entries()) {
-            const expectedName = index < 16 ? /^@llx17669475\/skillshelf-skill-[a-z0-9]+(?:-[a-z0-9]+)*$/ :
-              index === 16 ? /^@llx17669475\/skillshelf-catalog$/ : /^@llx17669475\/skillshelf$/;
+            const expectedName = index < 8 ? /^@llx17669475\/skillshelf-pack-[a-z0-9]+(?:-[a-z0-9]+)*$/ :
+              index === 8 ? /^@llx17669475\/skillshelf-catalog$/ : /^@llx17669475\/skillshelf$/;
             if (!expectedName.test(row.name) || names.has(row.name) || row.version !== version ||
                 row.tag !== 'next' || row.access !== 'public' || row.repository !== plan.repository ||
                 !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(row.integrity) ||

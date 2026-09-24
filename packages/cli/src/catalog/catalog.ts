@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { guardCatalog, forbidCoreRefresh } from '../transactions/core-guard.js';
 import { lstat, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,8 +8,7 @@ import { ensurePrivateDirectory as ensurePrivateHome } from '../runtime/privacy.
 import type { Catalog, CatalogEntry, Context } from '../types.js';
 import { canonicalJson, EXACT_VERSION, LIMITS, validateCatalog, validatePublicCatalog } from '../validation.js';
 import { readRegularFile } from '../registry/files.js';
-import { loadState } from '../store/state.js';
-import { validateHomeLocation } from '../agents/storage-boundary.js';
+import { validateStoredHomeLocation } from '../store/state.js';
 import { CATALOG_PACKAGE, fetchRegistryBytes, resolveNpmRelease } from '../registry/http.js';
 import { parseJsonFile, readTarball, validateDataPackage } from '../registry/tar.js';
 
@@ -53,12 +53,13 @@ async function cacheFile(ctx: Context): Promise<string | undefined> {
   } catch (cause) { if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw cause; }
 }
 export async function loadCatalog(ctx: Context): Promise<Catalog> {
-  if (ctx.catalogPath) return compatible(validateCatalog(JSON.parse((await readRegularFile(path.resolve(ctx.catalogPath), LIMITS.catalogBytes)).toString('utf8'))));
-  const cached = await cacheFile(ctx);
-  if (cached) return unpack(JSON.parse((await readRegularFile(cached, LIMITS.catalogBytes * 3)).toString('utf8')) as CatalogReceipt);
-  // Build copies only metadata here, never skill bodies or localArtifact paths.
+  if (ctx.catalogPath) return guardCatalog(compatible(validateCatalog(JSON.parse((await readRegularFile(path.resolve(ctx.catalogPath), LIMITS.catalogBytes)).toString('utf8')))));
   const bootstrap = fileURLToPath(new URL('./bootstrap.json', import.meta.url));
-  return compatible(validatePublicCatalog(JSON.parse((await readRegularFile(bootstrap, LIMITS.catalogBytes)).toString('utf8'))));
+  const packaged=compatible(validatePublicCatalog(JSON.parse((await readRegularFile(bootstrap, LIMITS.catalogBytes)).toString('utf8'))));
+  const cached=await cacheFile(ctx);
+  if(!cached)return guardCatalog(packaged);
+  const previous=unpack(JSON.parse((await readRegularFile(cached,LIMITS.catalogBytes*3)).toString('utf8')) as CatalogReceipt);
+  return guardCatalog(packaged.schemaVersion>previous.schemaVersion||compareVersion(packaged.catalogVersion,previous.catalogVersion)>0?packaged:previous);
 }
 async function downloadCatalog(): Promise<{ catalog: Catalog; receipt: CatalogReceipt }> {
   const release = await resolveNpmRelease(CATALOG_PACKAGE, RELEASE_CHANNEL, true);
@@ -72,9 +73,10 @@ export async function fetchLatestCatalog(ctx: Context): Promise<Catalog> {
   return (await downloadCatalog()).catalog;
 }
 export async function refreshCatalog(ctx: Context): Promise<Catalog> {
+  forbidCoreRefresh();
   if (ctx.offline) throw new Error('Cannot refresh the npm catalog in offline mode');
   if (ctx.catalogPath) return loadCatalog(ctx);
-  await validateHomeLocation(ctx,Object.values((await loadState(ctx)).targets));
+  await validateStoredHomeLocation(ctx);
   const { catalog, receipt } = await downloadCatalog();
   const directory = path.join(path.resolve(ctx.home), 'catalogs');
   await ensurePrivateHome(path.resolve(ctx.home));
@@ -90,11 +92,16 @@ export function searchCatalog(catalog: Catalog, query = '', filters: { category?
   const terms = query.normalize('NFKC').toLocaleLowerCase('en-US').trim().split(/\s+/u).filter(Boolean);
   const installed = filters.installed ? new Set(filters.installed) : undefined;
   const collection = filters.collection ? catalog.collections.find(item => item.id === filters.collection) : undefined;
-  return catalog.skills.filter(entry => {
-    if (filters.category && entry.category !== filters.category) return false;
-    if (filters.collection && !collection?.skills.includes(entry.id)) return false;
-    if (installed && !installed.has(entry.id) && !installed.has(entry.name)) return false;
+  const synonyms = [['前端','frontend','web','网页'],['后端','backend','服务'],['测试','test','testing','tdd'],['调试','debug','debugging','故障'],['设计','design','界面','ui','ux'],['图片','image','图像'],['视频','video'],['搜索','search','检索'],['审查','review'],['架构','architecture','模块'],['安全','security','taint'],['计划','plan','planning'],['全栈','full-stack','端到端']];
+  const expanded=terms.map(term=>synonyms.find(group=>group.includes(term))||[term]);
+  const results:CatalogEntry[]=[];
+  for (const entry of catalog.skills) {
+    if (filters.category && entry.category !== filters.category && !entry.members?.some(member=>member.category===filters.category||member.subcategory===filters.category)) continue;
+    if (filters.collection && !collection?.skills.includes(entry.id)) continue;
+    if (installed && !installed.has(entry.id) && !installed.has(entry.name)) continue;
     const haystack = [entry.id, entry.name, entry.title, entry.description, entry.useWhen, ...entry.tags, ...entry.examples, entry.category, entry.collection].join('\n').normalize('NFKC').toLocaleLowerCase('en-US');
-    return terms.every(term => haystack.includes(term));
-  });
+    const matchedMembers=(entry.members||[]).flatMap(member=>{if(filters.category&&member.category!==filters.category&&member.subcategory!==filters.category)return[];const fields={name:member.id,title:member.title,description:member.description,useWhen:member.useWhen,examples:member.examples.join(' '),tags:member.tags.join(' '),purpose:member.purpose,stack:member.stack.join(' '),dependencies:member.dependencies.join(' '),category:member.category+' '+member.subcategory};const normalized=Object.entries(fields).map(([field,text])=>[field,text.normalize('NFKC').toLocaleLowerCase('en-US')] as const);if(!expanded.every(group=>group.some(term=>normalized.some(([,text])=>text.includes(term)))))return[];return[{id:member.id,reasons:normalized.filter(([,text])=>!terms.length||expanded.some(group=>group.some(term=>text.includes(term)))).map(([field])=>field)}];});
+    if (matchedMembers.length || expanded.every(group=>group.some(term=>haystack.includes(term)))) results.push({...entry,...(entry.members?{matchedMembers}:{})});
+  }
+  return results;
 }

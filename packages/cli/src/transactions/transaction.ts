@@ -7,6 +7,8 @@ import { exists, fingerprint, ensurePrivateDir, keyFor, readJson, writeJson, flu
 import { loadState, initHome, validateState } from '../store/state.js';
 import { withLocks } from './locks.js';
 import { fail } from '../errors.js';
+import { assertCoreTransaction } from './core-guard.js';
+import { validateHomeLocation } from '../agents/storage-boundary.js';
 
 export interface Change { path: string; workRoot: string; expected: string | null; prepare?: (stage: string) => Promise<void> }
 // New journals store exact fs identifiers as decimal strings. Safe numeric anchors
@@ -132,12 +134,14 @@ export async function transact(ctx: Context, expectedState: State, nextState: St
   if (new Set(paths).size !== paths.length) fail('CONFLICT', '同一事务不能重复修改目标');
   for (const change of changes) if (!validWorkRoot(change.path, change.workRoot)) fail('CONFLICT', '事务目标或工作目录不符合受控路径规则');
   for (const change of changes) for (const other of changes) if (change !== other && (within(change.path, other.path) || within(change.path, other.workRoot))) fail('CONFLICT', '事务目标或工作目录重叠');
+  await validateHomeLocation(ctx,Object.values(nextState.targets),{projects:Object.keys(nextState.projects)});
   await initHome(ctx);
   // This nested order matches recoverTransactions exactly: home first, targets second.
   await withLocks([join(ctx.home, 'writer.lock')], async () => withLocks(changes.map((change) => join(change.workRoot, 'target.lock')), async () => {
     if ((await pendingTransactions(ctx)).length) fail('RECOVERY', '存在未完成事务，请先运行 repair --recover');
     const current = await loadState(ctx);
     if (current.generation !== expectedState.generation) fail('CONFLICT', '本地状态已变化，请重新预览');
+    await assertCoreTransaction(ctx, current);
     for (const change of changes) if (await fingerprint(change.path) !== change.expected) fail('CONFLICT', '目标内容已变化，未修改');
     for (const guard of hooks.guards || []) if (await fingerprint(guard.path) !== guard.expected) fail('CONFLICT', '只读契约文件已变化');
     const id = randomUUID(); const journalPath = join(ctx.home, 'transactions', id + '.json');

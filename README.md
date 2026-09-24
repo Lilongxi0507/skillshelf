@@ -4,9 +4,9 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **公开预览版已上架。** `0.1.0-preview.2` 的 16 个技能包、目录包和 CLI 共 18 个包已通过 GitHub Actions Trusted Publishing 发布到 npm；确切版本、`next` 标签、公共下载包的 SHA-512 和 provenance 均已核对。[发布运行 `35893524822`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35893524822)在 Linux、macOS、Windows 的 Node.js 22/24 作业通过；[公共 npm smoke `35918416358`](https://github.com/Lilongxi0507/skillshelf/actions/runs/35918416358)的六组作业也全部通过。详情见[公开验证记录](PUBLIC-VERIFICATION.md)。
+> **本地候选尚未发布。** 当前候选为 `0.2.0-preview.1`，npm 命名空间为 `@llx17669475`，计划使用 `next` 通道，包含 8 个完整技能包、1 个目录包和 1 个 CLI 包，共 10 个 npm 包。历史公开版本和旧 CI 不代表本候选已发布或已完成跨平台验收；下文的 npm 安装命令只有在本候选正式发布并完成公共 registry 回读后，才能用于获取本候选。
 >
-> 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
+> 独立公开源码仓库：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。源码公开不代表 npm 包已经发布。
 
 ## 为什么使用 SkillShelf
 
@@ -19,7 +19,7 @@ SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文
 
 需要 **Node.js >=22.20.0**；建议使用 Node.js 22 或 24 的最新补丁版。日常管理和指令型技能不需要 Python；第一方搜索/媒体工具的 `run` 需要 **Python >=3.10**。执行其他技能附带的脚本时，仍需遵守该技能自己的依赖说明。SkillShelf 不自动安装解释器或技能依赖。
 
-安装公开预览版：
+**公开预览版发布完成后：**
 
 ```bash
 npm install -g @llx17669475/skillshelf@next
@@ -37,22 +37,30 @@ skillshelf info ui-ux-pro-max
 skillshelf install ui-ux-pro-max --agent claude-code codex --dry-run
 skillshelf install ui-ux-pro-max --agent claude-code codex --yes
 skillshelf install --collection taste --yes
+skillshelf install --collection superpowers --yes
+skillshelf install gitnexus --yes
 skillshelf status
 skillshelf files ui-ux-pro-max
 skillshelf read ui-ux-pro-max --path SKILL.md --raw
 ```
 
-如需从源码构建或核对发布包，可按[贡献指南](CONTRIBUTING.md)操作；不要把安装失败解释成应放宽来源校验。
+尚未发布时，可按[贡献指南](CONTRIBUTING.md)从源码准备本地包；不要把安装失败解释成应放宽来源校验。
 
-## 首批 16 项技能
+## 按需收录的 83 项技能
 
 | 系列 | 内容 |
 |---|---|
 | Taste 精选（13 项） | design-taste-frontend、design-taste-frontend-v1、gpt-taste、image-to-code、imagegen-frontend-web、imagegen-frontend-mobile、brandkit、redesign-existing-projects、high-end-visual-design、full-output-enforcement、minimalist-ui、industrial-brutalist-ui、stitch-design-taste |
 | UI/UX Pro Max | ui-ux-pro-max，**74 个完整文件**，含脚本、数据与引用资源 |
 | 第一方本地工具（2 项） | skillshelf-web-search（Tavily / Brave）、skillshelf-media-generation（图片 / 视频） |
+| Archify（1 项） | 完整图表技能、渲染器、示例、测试和品牌素材许可记录 |
+| Matt Pocock（38 项） | 工程、协作、开发中与其他四个系列，保留原始技能文件 |
+| Superpowers（15 项） | 完整流程技能；使用跨技能相对引用时按需安装整个 `superpowers` 系列 |
+| GitNexus（13 项） | 代码图谱技能；CLI/MCP 为另行安装的可选运行时，含一项仅适用于上游 Claude Swarm 的技能 |
 
-首发计划共 **18 个 npm 包**：1 个 CLI、1 个元数据目录、16 个独立技能数据包。固定来源与许可证见[来源记录](catalog/PROVENANCE.md)；第一方代码使用 MIT，第三方版权、许可证、NOTICE 和嵌入资源的许可记录原样保留。
+当前候选共 **10 个待发布 npm 包**：1 个 CLI、1 个元数据目录、8 个完整技能包，包内合计 83 个子技能。每个包只在显式 `install` 时获取；目录检索、读取说明和安装均不执行上游脚本或自动启用插件。GitNexus 使用 **PolyForm Noncommercial 1.0.0**，仅适用于符合该许可的非商业用途；Archify 内的品牌素材另有逐项许可。固定来源和许可见[来源记录](catalog/PROVENANCE.md)。
+
+SkillShelf 的 `run` 只执行已审核的两个第一方本地工具。Archify 的 Node 渲染器、GitNexus CLI/MCP、Matt 和 Superpowers 附带的脚本与工作流由调用方在具备依赖和授权时使用；安装技能本身不会安装依赖或创建索引、hooks、Agent 配置。原生 Agent 的发现与跨技能调用需要在目标客户端单独验证。GitNexus 的 `gitnexus-pr-swarm-review` 仅面向上游 GitNexus 仓库和 Claude Swarm 环境。
 
 ## Agent 目录与本机存储
 
@@ -78,7 +86,7 @@ skillshelf disable ui-ux-pro-max --agent codex --yes
 
 可通过 `SKILLSHELF_HOME` 或 `--home` 指定独立目录。数据 home 与 Agent 扫描根不能互相包含。受管内容不应直接编辑；使用 `fork` 创建独立可编辑副本。
 
-**平台验证范围：** 同一组发布候选包已在 Linux、macOS、Windows 的 Node.js 22/24 原生 CI 上完成安装与核心流程验证；Windows 还验证了实际打包 CLI 的 `.cmd` 入口、私有 ACL 与中断恢复。公共 npm smoke 也在六组平台作业中完成了安装与核心流程检查。各系统的跳过项见[公开验证记录](PUBLIC-VERIFICATION.md)。各 Agent 原生加载仍需单独实测；目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
+**平台验证范围：** 当前候选已完成 Linux Node 24 隔离回归（160 通过、2 跳过）和 40/80/120 列 PTY 冒烟；Windows、macOS 及部分 Agent 原生加载仍待实测。目录存在不等于 Agent 已发现技能，未经原生验证的目标标记为 `unverified`。多个 Agent 若共享兼容扫描根，可能同时看到技能；`--agent` 不是访问控制。
 
 ## 更新、固定版本与回滚
 
@@ -96,7 +104,7 @@ skillshelf remove ui-ux-pro-max --yes   # 移除当前范围选择，保留下�
 skillshelf self-update --check         # 检查 CLI，不自行覆盖 npm 管理的程序
 ```
 
-此预览版的安装说明与程序更新检查使用 `next` 通道；npm 首次发布时还自动创建了指向该预览版的 `latest` 标签，它不表示已有稳定版。请显式使用 `@next` 或确切版本。目录检查/刷新跟随预览通道；技能本身仍按目录或项目锁的确切版本与摘要获取。CLI 升级由 npm 完成：`npm install -g @llx17669475/skillshelf@next`。
+此预览版使用 `next` 通道，而不是稳定版 `latest`。目录检查/刷新与 CLI 更新检查跟随预览通道；技能本身仍按目录或项目锁的确切版本与摘要获取。发布前远端检查可能因包或标签尚不存在而失败，不代表有可用更新。CLI 升级由 npm 完成：`npm install -g @llx17669475/skillshelf@next`。
 
 ### 从旧占位预览迁移
 
@@ -167,8 +175,8 @@ skillshelf gc --yes                    # 保留已记录历史与备份
 ## 参与开发
 
 - [贡献指南](CONTRIBUTING.md)：依赖、构建和本地验证步骤。
-- [发布说明](docs/release.md)：公开源码范围、18 包发布顺序、Trusted Publishing 和发布门禁。
+- [发布说明](docs/release.md)：公开源码范围、10 包发布顺序与发布门禁。
 - [公开验证记录](PUBLIC-VERIFICATION.md)：实际执行的检查、平台与仍未验证的限制。
 - [目录说明](catalog/README.md)：来源、内容包、校验和离线目录。
 
-本工程无需其他仓库的源码、服务配置或业务数据即可使用已收录的技能快照。测试 CI 不持有发布凭据；手动触发的 Trusted Publishing 工作流只在审计、六组原生作业和公共 registry 检查通过后发布。
+本工程无需其他仓库的源码、服务配置或业务数据即可使用已收录的技能快照。没有自动发布工作流；测试 CI 不持有发布凭据，也不发布 npm 包。

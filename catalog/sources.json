@@ -1,27 +1,1692 @@
 {
   "schemaVersion": 1,
   "scope": "@llx17669475",
-  "version": "0.1.0-preview.2",
+  "version": "0.2.0-preview.1",
   "repositories": {
-    "taste": {"repository":"Leonxlnx/taste-skill","commit":"5217fb45be2c0b302f29c9cd31cbd3237501c684"},
-    "uiux": {"repository":"nextlevelbuilder/ui-ux-pro-max-skill","commit":"dcc40ff5133ef78276117db0cc34e7b83cc8aeba"}
+    "taste": {
+      "repository": "Leonxlnx/taste-skill",
+      "commit": "5217fb45be2c0b302f29c9cd31cbd3237501c684"
+    },
+    "uiux": {
+      "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "commit": "dcc40ff5133ef78276117db0cc34e7b83cc8aeba"
+    },
+    "matt": {
+      "repository": "mattpocock/skills",
+      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7"
+    },
+    "superpowers": {
+      "repository": "obra/superpowers",
+      "commit": "5bf4e78011075bcfc0dc295f0724994cd123ee71"
+    },
+    "archify": {
+      "repository": "tt-a1i/archify",
+      "commit": "c826e6c3a7abad19c0f3cd1ca57207d54b1ad8de"
+    },
+    "gitnexus": {
+      "repository": "abhigyanpatwari/GitNexus",
+      "commit": "c2ca132620ae935749fd243ee8a93dcccd870f02",
+      "requiredNotice": "Required Notice: Copyright Abhigyan Patwari (https://github.com/abhigyanpatwari/GitNexus)"
+    }
   },
+  "categories": [
+    {
+      "id": "design",
+      "title": "视觉与界面设计"
+    },
+    {
+      "id": "engineering",
+      "title": "工程与代码"
+    },
+    {
+      "id": "research",
+      "title": "搜索与研究"
+    },
+    {
+      "id": "media",
+      "title": "图片与视频"
+    },
+    {
+      "id": "productivity",
+      "title": "写作与协作"
+    }
+  ],
+  "collections": [
+    {
+      "id": "taste",
+      "title": "Taste 精选",
+      "description": "固定上游提交的 13 项完整技能。"
+    },
+    {
+      "id": "uiux",
+      "title": "UI/UX Pro Max",
+      "description": "完整资源、检索脚本与数据快照。"
+    },
+    {
+      "id": "local-tools",
+      "title": "本地执行工具",
+      "description": "第一方标准库脚本，服务配置和成品留在本机。"
+    },
+    {
+      "id": "archify",
+      "title": "Archify 图表生成",
+      "description": "固定 v2.16.0 的完整可选架构、工作流、时序、数据流与生命周期图技能。"
+    },
+    {
+      "id": "matt-engineering",
+      "title": "Matt 工程技能",
+      "description": "Matt Pocock 工程流程与架构技能。"
+    },
+    {
+      "id": "matt-productivity",
+      "title": "Matt 协作技能",
+      "description": "Matt Pocock 沟通、教学和写作技能。"
+    },
+    {
+      "id": "matt-beta",
+      "title": "Matt 开发中技能",
+      "description": "上游 in-progress 原样快照，按需试用。"
+    },
+    {
+      "id": "matt-misc",
+      "title": "Matt 其他技能",
+      "description": "上游 misc 原样快照，按需试用。"
+    },
+    {
+      "id": "superpowers",
+      "title": "Superpowers 完整技能合集",
+      "description": "固定 v6.4.1 原始快照的 15 项可选工程流程技能。"
+    },
+    {
+      "id": "gitnexus",
+      "title": "GitNexus 代码图谱",
+      "description": "固定上游提交的 13 项非商业技能；CLI/MCP 单独按需安装。"
+    }
+  ],
   "skills": [
-    {"name":"design-taste-frontend","source":"taste","path":"skills/taste-skill","title":"Taste 前端设计","description":"以审美、布局和工程约束生成有辨识度的前端页面。","useWhen":"从简报开始制作落地页、作品集或重设计。","category":"design","collection":"taste","status":"recommended","tags":["frontend","taste","网页"],"examples":["为产品构建有辨识度的营销页。"]},
-    {"name":"design-taste-frontend-v1","source":"taste","path":"skills/taste-skill-v1","title":"Taste 前端设计 v1","description":"保留 Taste v1 原版设计方法，适合已有工作流兼容。","useWhen":"需要延续旧版 Taste 设计方向时。","category":"design","collection":"taste","status":"legacy","tags":["frontend","legacy"],"examples":["按 v1 设计规范延续已有页面。"]},
-    {"name":"gpt-taste","source":"taste","path":"skills/gpt-tasteskill","title":"GPT Taste","description":"面向 GPT 的高质量 UI 与前端生成约束。","useWhen":"使用 GPT 系列模型进行前端设计与实现。","category":"design","collection":"taste","status":"stable","tags":["gpt","frontend"],"examples":["用 GPT 生成质感统一的页面。"]},
-    {"name":"image-to-code","source":"taste","path":"skills/image-to-code-skill","title":"图片转代码","description":"依据视觉参考和截图还原可维护前端实现。","useWhen":"用户提供截图或图像参考，需要转成页面。","category":"design","collection":"taste","status":"stable","tags":["image","screenshot"],"examples":["依据截图重建页面布局。"]},
-    {"name":"imagegen-frontend-web","source":"taste","path":"skills/imagegen-frontend-web","title":"生成式网页视觉","description":"将图片生成与网页视觉实现结合的设计指导。","useWhen":"网页需要原创视觉素材并与版式融合。","category":"design","collection":"taste","status":"stable","tags":["imagegen","web"],"examples":["为品牌网页规划原创图片素材。"]},
-    {"name":"imagegen-frontend-mobile","source":"taste","path":"skills/imagegen-frontend-mobile","title":"生成式移动端视觉","description":"结合图片生成规划移动端界面和视觉资源。","useWhen":"设计移动端产品界面与相关图像素材。","category":"design","collection":"taste","status":"stable","tags":["imagegen","mobile"],"examples":["设计适合手机的原创视觉界面。"]},
-    {"name":"brandkit","source":"taste","path":"skills/brandkit","title":"品牌设计套件","description":"制定品牌视觉语言及一致的前端呈现。","useWhen":"需要品牌字体、色彩和视觉系统。","category":"design","collection":"taste","status":"stable","tags":["brand","identity"],"examples":["为新产品制定品牌视觉方案。"]},
-    {"name":"redesign-existing-projects","source":"taste","path":"skills/redesign-skill","title":"现有项目重设计","description":"先审视已有项目再改善视觉和交互质量。","useWhen":"已有代码和界面需要有依据地升级。","category":"design","collection":"taste","status":"recommended","tags":["redesign","audit"],"examples":["保留功能的同时升级项目视觉。"]},
-    {"name":"high-end-visual-design","source":"taste","path":"skills/soft-skill","title":"高端视觉设计","description":"强调细节、层次和高级感的视觉设计方法。","useWhen":"页面需要精致、柔和且有品质感的表现。","category":"design","collection":"taste","status":"stable","tags":["visual","high-end"],"examples":["打磨页面的字体与视觉层次。"]},
-    {"name":"full-output-enforcement","source":"taste","path":"skills/output-skill","title":"完整输出约束","description":"约束代码输出完整性，减少占位和省略实现。","useWhen":"需要可直接采用且无截断的代码输出。","category":"engineering","collection":"taste","status":"stable","tags":["code","completeness"],"examples":["完整输出实现，不用省略占位符。"]},
-    {"name":"minimalist-ui","source":"taste","path":"skills/minimalist-skill","title":"极简 UI","description":"以克制布局、留白和字体构建极简界面。","useWhen":"任务适合极简而清晰的视觉方向。","category":"design","collection":"taste","status":"stable","tags":["minimal","ui"],"examples":["设计克制清晰的个人作品集。"]},
-    {"name":"industrial-brutalist-ui","source":"taste","path":"skills/brutalist-skill","title":"工业粗野主义 UI","description":"构建鲜明的工业与粗野主义风格界面。","useWhen":"项目明确需要硬朗、结构化的视觉方向。","category":"design","collection":"taste","status":"stable","tags":["industrial","brutalist"],"examples":["为展览设计工业风页面。"]},
-    {"name":"stitch-design-taste","source":"taste","path":"skills/stitch-skill","title":"Stitch 设计 Taste","description":"面向 Stitch 工作流的高审美设计指导。","useWhen":"使用 Stitch 生成或迭代界面。","category":"design","collection":"taste","status":"experimental","tags":["stitch","design"],"examples":["为 Stitch 编写有方向的设计提示。"]},
-    {"name":"ui-ux-pro-max","source":"uiux","path":".claude/skills/ui-ux-pro-max","title":"UI/UX Pro Max","description":"完整 UI/UX 数据、参考文档与检索脚本，覆盖多技术栈。","useWhen":"需要查询设计模式、配色、字体或技术栈建议。","category":"design","collection":"uiux","status":"recommended","tags":["ui","ux","design-system"],"examples":["查询适合产品的设计系统与技术栈建议。"]},
-    {"name":"skillshelf-web-search","source":"first-party","path":"clients/skills/panel-web-search","title":"本地智能联网搜索","description":"本机直连 Tavily/Brave，返回可追溯来源，不依赖面板。","useWhen":"查找最新信息、官网和文档，比较方案与核实事实。","category":"research","collection":"local-tools","status":"recommended","tags":["search","tavily","brave"],"examples":["找到项目官方文档并核实当前用法。"]},
-    {"name":"skillshelf-media-generation","source":"first-party","path":"clients/skills/panel-media-generation","title":"本地图片与视频生成","description":"完整标准库脚本直连图片/视频服务，保存本地任务与成品。","useWhen":"生成图片、参考图编辑、文生视频、首尾帧和参考媒体生成。","category":"media","collection":"local-tools","status":"recommended","tags":["image","video","generation"],"examples":["生成横版海报并保存到本地。"]}
+    {
+      "name": "design-taste-frontend",
+      "source": "taste",
+      "path": "skills/taste-skill",
+      "title": "Taste 前端设计",
+      "description": "以审美、布局和工程约束生成有辨识度的前端页面。",
+      "useWhen": "从简报开始制作落地页、作品集或重设计。",
+      "category": "design",
+      "collection": "taste",
+      "status": "recommended",
+      "tags": [
+        "frontend",
+        "taste",
+        "网页"
+      ],
+      "examples": [
+        "为产品构建有辨识度的营销页。"
+      ]
+    },
+    {
+      "name": "design-taste-frontend-v1",
+      "source": "taste",
+      "path": "skills/taste-skill-v1",
+      "title": "Taste 前端设计 v1",
+      "description": "保留 Taste v1 原版设计方法，适合已有工作流兼容。",
+      "useWhen": "需要延续旧版 Taste 设计方向时。",
+      "category": "design",
+      "collection": "taste",
+      "status": "legacy",
+      "tags": [
+        "frontend",
+        "legacy"
+      ],
+      "examples": [
+        "按 v1 设计规范延续已有页面。"
+      ]
+    },
+    {
+      "name": "gpt-taste",
+      "source": "taste",
+      "path": "skills/gpt-tasteskill",
+      "title": "GPT Taste",
+      "description": "面向 GPT 的高质量 UI 与前端生成约束。",
+      "useWhen": "使用 GPT 系列模型进行前端设计与实现。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "gpt",
+        "frontend"
+      ],
+      "examples": [
+        "用 GPT 生成质感统一的页面。"
+      ]
+    },
+    {
+      "name": "image-to-code",
+      "source": "taste",
+      "path": "skills/image-to-code-skill",
+      "title": "图片转代码",
+      "description": "依据视觉参考和截图还原可维护前端实现。",
+      "useWhen": "用户提供截图或图像参考，需要转成页面。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "image",
+        "screenshot"
+      ],
+      "examples": [
+        "依据截图重建页面布局。"
+      ]
+    },
+    {
+      "name": "imagegen-frontend-web",
+      "source": "taste",
+      "path": "skills/imagegen-frontend-web",
+      "title": "生成式网页视觉",
+      "description": "将图片生成与网页视觉实现结合的设计指导。",
+      "useWhen": "网页需要原创视觉素材并与版式融合。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "imagegen",
+        "web"
+      ],
+      "examples": [
+        "为品牌网页规划原创图片素材。"
+      ]
+    },
+    {
+      "name": "imagegen-frontend-mobile",
+      "source": "taste",
+      "path": "skills/imagegen-frontend-mobile",
+      "title": "生成式移动端视觉",
+      "description": "结合图片生成规划移动端界面和视觉资源。",
+      "useWhen": "设计移动端产品界面与相关图像素材。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "imagegen",
+        "mobile"
+      ],
+      "examples": [
+        "设计适合手机的原创视觉界面。"
+      ]
+    },
+    {
+      "name": "brandkit",
+      "source": "taste",
+      "path": "skills/brandkit",
+      "title": "品牌设计套件",
+      "description": "制定品牌视觉语言及一致的前端呈现。",
+      "useWhen": "需要品牌字体、色彩和视觉系统。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "brand",
+        "identity"
+      ],
+      "examples": [
+        "为新产品制定品牌视觉方案。"
+      ]
+    },
+    {
+      "name": "redesign-existing-projects",
+      "source": "taste",
+      "path": "skills/redesign-skill",
+      "title": "现有项目重设计",
+      "description": "先审视已有项目再改善视觉和交互质量。",
+      "useWhen": "已有代码和界面需要有依据地升级。",
+      "category": "design",
+      "collection": "taste",
+      "status": "recommended",
+      "tags": [
+        "redesign",
+        "audit"
+      ],
+      "examples": [
+        "保留功能的同时升级项目视觉。"
+      ]
+    },
+    {
+      "name": "high-end-visual-design",
+      "source": "taste",
+      "path": "skills/soft-skill",
+      "title": "高端视觉设计",
+      "description": "强调细节、层次和高级感的视觉设计方法。",
+      "useWhen": "页面需要精致、柔和且有品质感的表现。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "visual",
+        "high-end"
+      ],
+      "examples": [
+        "打磨页面的字体与视觉层次。"
+      ]
+    },
+    {
+      "name": "full-output-enforcement",
+      "source": "taste",
+      "path": "skills/output-skill",
+      "title": "完整输出约束",
+      "description": "约束代码输出完整性，减少占位和省略实现。",
+      "useWhen": "需要可直接采用且无截断的代码输出。",
+      "category": "engineering",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "code",
+        "completeness"
+      ],
+      "examples": [
+        "完整输出实现，不用省略占位符。"
+      ]
+    },
+    {
+      "name": "minimalist-ui",
+      "source": "taste",
+      "path": "skills/minimalist-skill",
+      "title": "极简 UI",
+      "description": "以克制布局、留白和字体构建极简界面。",
+      "useWhen": "任务适合极简而清晰的视觉方向。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "minimal",
+        "ui"
+      ],
+      "examples": [
+        "设计克制清晰的个人作品集。"
+      ]
+    },
+    {
+      "name": "industrial-brutalist-ui",
+      "source": "taste",
+      "path": "skills/brutalist-skill",
+      "title": "工业粗野主义 UI",
+      "description": "构建鲜明的工业与粗野主义风格界面。",
+      "useWhen": "项目明确需要硬朗、结构化的视觉方向。",
+      "category": "design",
+      "collection": "taste",
+      "status": "stable",
+      "tags": [
+        "industrial",
+        "brutalist"
+      ],
+      "examples": [
+        "为展览设计工业风页面。"
+      ]
+    },
+    {
+      "name": "stitch-design-taste",
+      "source": "taste",
+      "path": "skills/stitch-skill",
+      "title": "Stitch 设计 Taste",
+      "description": "面向 Stitch 工作流的高审美设计指导。",
+      "useWhen": "使用 Stitch 生成或迭代界面。",
+      "category": "design",
+      "collection": "taste",
+      "status": "experimental",
+      "tags": [
+        "stitch",
+        "design"
+      ],
+      "examples": [
+        "为 Stitch 编写有方向的设计提示。"
+      ]
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "source": "uiux",
+      "path": ".claude/skills/ui-ux-pro-max",
+      "title": "UI/UX Pro Max",
+      "description": "完整 UI/UX 数据、参考文档与检索脚本，覆盖多技术栈。",
+      "useWhen": "需要查询设计模式、配色、字体或技术栈建议。",
+      "category": "design",
+      "collection": "uiux",
+      "status": "recommended",
+      "tags": [
+        "ui",
+        "ux",
+        "design-system"
+      ],
+      "examples": [
+        "查询适合产品的设计系统与技术栈建议。"
+      ]
+    },
+    {
+      "name": "skillshelf-web-search",
+      "source": "first-party",
+      "path": "clients/skills/panel-web-search",
+      "title": "本地智能联网搜索",
+      "description": "本机直连 Tavily/Brave，返回可追溯来源，不依赖面板。",
+      "useWhen": "查找最新信息、官网和文档，比较方案与核实事实。",
+      "category": "research",
+      "collection": "local-tools",
+      "status": "recommended",
+      "tags": [
+        "search",
+        "tavily",
+        "brave"
+      ],
+      "examples": [
+        "找到项目官方文档并核实当前用法。"
+      ]
+    },
+    {
+      "name": "skillshelf-media-generation",
+      "source": "first-party",
+      "path": "clients/skills/panel-media-generation",
+      "title": "本地图片与视频生成",
+      "description": "完整标准库脚本直连图片/视频服务，保存本地任务与成品。",
+      "useWhen": "生成图片、参考图编辑、文生视频、首尾帧和参考媒体生成。",
+      "category": "media",
+      "collection": "local-tools",
+      "status": "recommended",
+      "tags": [
+        "image",
+        "video",
+        "generation"
+      ],
+      "examples": [
+        "生成横版海报并保存到本地。"
+      ]
+    },
+    {
+      "name": "archify",
+      "source": "archify",
+      "path": "archify",
+      "title": "Archify 技术图表",
+      "description": "从 JSON 规格生成可交互 HTML 和 SVG 技术图表，提供校验及可选视觉检查。",
+      "useWhen": "需要展示架构、工作流、API 时序、数据流或状态生命周期时。",
+      "category": "engineering",
+      "collection": "archify",
+      "status": "experimental",
+      "tags": [
+        "diagram",
+        "architecture",
+        "workflow"
+      ],
+      "examples": [
+        "按实际仓库证据绘制请求生命周期图。"
+      ],
+      "license": "SEE LICENSE IN skill/THIRD_PARTY_NOTICES"
+    },
+    {
+      "name": "ask-matt",
+      "source": "matt",
+      "path": "skills/engineering/ask-matt",
+      "title": "Ask Matt",
+      "description": "Choose the appropriate Matt Pocock engineering skill or workflow.",
+      "useWhen": "The user asks which engineering skill or flow fits a task.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "routing",
+        "engineering"
+      ],
+      "examples": [
+        "Which workflow should I use for this change?"
+      ],
+      "snapshot": "matt-ask-matt"
+    },
+    {
+      "name": "code-review",
+      "source": "matt",
+      "path": "skills/engineering/code-review",
+      "title": "Code Review",
+      "description": "Review a diff against repository standards and the originating specification.",
+      "useWhen": "A code change needs a structured review from a fixed Git point.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "review",
+        "quality"
+      ],
+      "examples": [
+        "Review this change against its specification."
+      ],
+      "snapshot": "matt-code-review"
+    },
+    {
+      "name": "codebase-design",
+      "source": "matt",
+      "path": "skills/engineering/codebase-design",
+      "title": "Codebase Design",
+      "description": "Design deeper modules with small interfaces and clear seams.",
+      "useWhen": "A module interface or codebase boundary needs design work.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "architecture",
+        "modules"
+      ],
+      "examples": [
+        "Find a better seam for this module."
+      ],
+      "snapshot": "matt-codebase-design"
+    },
+    {
+      "name": "diagnosing-bugs",
+      "source": "matt",
+      "path": "skills/engineering/diagnosing-bugs",
+      "title": "Diagnosing Bugs",
+      "description": "Build a focused feedback loop to diagnose bugs and performance regressions.",
+      "useWhen": "The user reports a failure, regression, or slow behavior.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "debugging",
+        "performance"
+      ],
+      "examples": [
+        "Diagnose this failing request."
+      ],
+      "snapshot": "matt-diagnosing-bugs"
+    },
+    {
+      "name": "domain-modeling",
+      "source": "matt",
+      "path": "skills/engineering/domain-modeling",
+      "title": "Domain Modeling",
+      "description": "Sharpen project terminology and record domain decisions.",
+      "useWhen": "Discussing domain terms, CONTEXT.md, or architecture decision records.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "domain",
+        "architecture"
+      ],
+      "examples": [
+        "Clarify the domain terms in this module."
+      ],
+      "snapshot": "matt-domain-modeling"
+    },
+    {
+      "name": "grill-with-docs",
+      "source": "matt",
+      "path": "skills/engineering/grill-with-docs",
+      "title": "Grill With Docs",
+      "description": "Interview for clarity while developing glossary and decision documents.",
+      "useWhen": "A plan or design needs probing questions and supporting project docs.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "planning",
+        "documentation"
+      ],
+      "examples": [
+        "Challenge this design and capture the decisions."
+      ],
+      "snapshot": "matt-grill-with-docs"
+    },
+    {
+      "name": "implement",
+      "source": "matt",
+      "path": "skills/engineering/implement",
+      "title": "Implement",
+      "description": "Implement scoped work from a specification or set of tickets.",
+      "useWhen": "The user asks to build a defined spec or ticket set.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "implementation",
+        "workflow"
+      ],
+      "examples": [
+        "Implement this approved ticket."
+      ],
+      "snapshot": "matt-implement"
+    },
+    {
+      "name": "improve-codebase-architecture",
+      "source": "matt",
+      "path": "skills/engineering/improve-codebase-architecture",
+      "title": "Improve Codebase Architecture",
+      "description": "Inspect codebase design opportunities and produce a visual report.",
+      "useWhen": "The user wants an architecture review and prioritized deepening options.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "architecture",
+        "review"
+      ],
+      "examples": [
+        "Show the best architecture improvements in this codebase."
+      ],
+      "snapshot": "matt-improve-codebase-architecture"
+    },
+    {
+      "name": "prototype",
+      "source": "matt",
+      "path": "skills/engineering/prototype",
+      "title": "Prototype",
+      "description": "Build a disposable prototype to answer a design or state question.",
+      "useWhen": "A small experiment can test logic or UI alternatives.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "prototype",
+        "design"
+      ],
+      "examples": [
+        "Prototype two ways this interaction could work."
+      ],
+      "snapshot": "matt-prototype"
+    },
+    {
+      "name": "research",
+      "source": "matt",
+      "path": "skills/engineering/research",
+      "title": "Research",
+      "description": "Investigate a technical question using primary sources and cited findings.",
+      "useWhen": "The user asks for evidence-backed technical research.",
+      "category": "research",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "research",
+        "sources"
+      ],
+      "examples": [
+        "Research the current upstream API contract."
+      ],
+      "snapshot": "matt-research"
+    },
+    {
+      "name": "resolving-merge-conflicts",
+      "source": "matt",
+      "path": "skills/engineering/resolving-merge-conflicts",
+      "title": "Resolving Merge Conflicts",
+      "description": "Resolve Git merge or rebase conflicts by tracing the intent of both sides.",
+      "useWhen": "A merge or rebase is paused on conflicts.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "git",
+        "conflicts"
+      ],
+      "examples": [
+        "Resolve these merge conflicts by intent."
+      ],
+      "snapshot": "matt-resolving-merge-conflicts"
+    },
+    {
+      "name": "setup-matt-pocock-skills",
+      "source": "matt",
+      "path": "skills/engineering/setup-matt-pocock-skills",
+      "title": "Set Up Matt Pocock Skills",
+      "description": "Configure issue tracking, triage labels, and domain documentation for the workflow.",
+      "useWhen": "The user explicitly wants to configure this skill set in a repository.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "setup",
+        "workflow"
+      ],
+      "examples": [
+        "Set up the Matt Pocock workflow in this repo."
+      ],
+      "snapshot": "matt-setup-matt-pocock-skills"
+    },
+    {
+      "name": "tdd",
+      "source": "matt",
+      "path": "skills/engineering/tdd",
+      "title": "Test Driven Development",
+      "description": "Build code in small red green refactor slices.",
+      "useWhen": "The user asks for test first development or a focused regression test.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "tests",
+        "tdd"
+      ],
+      "examples": [
+        "Implement this behavior test first."
+      ],
+      "snapshot": "matt-tdd"
+    },
+    {
+      "name": "to-spec",
+      "source": "matt",
+      "path": "skills/engineering/to-spec",
+      "title": "To Spec",
+      "description": "Synthesize the current conversation into a project specification.",
+      "useWhen": "The user wants a concrete spec from already discussed requirements.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "specification",
+        "planning"
+      ],
+      "examples": [
+        "Turn our decisions into a specification."
+      ],
+      "snapshot": "matt-to-spec"
+    },
+    {
+      "name": "to-tickets",
+      "source": "matt",
+      "path": "skills/engineering/to-tickets",
+      "title": "To Tickets",
+      "description": "Split a plan into small tickets with explicit dependencies.",
+      "useWhen": "A plan or specification needs an actionable task graph.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "tickets",
+        "planning"
+      ],
+      "examples": [
+        "Break this plan into dependent tickets."
+      ],
+      "snapshot": "matt-to-tickets"
+    },
+    {
+      "name": "triage",
+      "source": "matt",
+      "path": "skills/engineering/triage",
+      "title": "Triage",
+      "description": "Triage issues and external pull requests into agent ready briefs.",
+      "useWhen": "The user asks to classify or prepare issues for implementation.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "issues",
+        "triage"
+      ],
+      "examples": [
+        "Triage this issue and prepare a brief."
+      ],
+      "snapshot": "matt-triage"
+    },
+    {
+      "name": "wayfinder",
+      "source": "matt",
+      "path": "skills/engineering/wayfinder",
+      "title": "Wayfinder",
+      "description": "Map large projects as linked decisions and resolve them incrementally.",
+      "useWhen": "A project is too large for one agent session and needs a decision map.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "planning",
+        "decisions"
+      ],
+      "examples": [
+        "Map the decisions needed for this migration."
+      ],
+      "snapshot": "matt-wayfinder"
+    },
+    {
+      "name": "wizard",
+      "source": "matt",
+      "path": "skills/engineering/wizard",
+      "title": "Wizard",
+      "description": "Generate an interactive shell wizard for human operated setup steps.",
+      "useWhen": "Infrastructure, credentials, or migrations require a human guided procedure.",
+      "category": "engineering",
+      "collection": "matt-engineering",
+      "status": "stable",
+      "tags": [
+        "wizard",
+        "operations"
+      ],
+      "examples": [
+        "Create a guided setup wizard for this service."
+      ],
+      "snapshot": "matt-wizard"
+    },
+    {
+      "name": "claude-handoff",
+      "source": "matt",
+      "path": "skills/in-progress/claude-handoff",
+      "title": "Claude Handoff",
+      "description": "Hand an active conversation to a fresh Claude background agent.",
+      "useWhen": "The user explicitly asks for a Claude background handoff.",
+      "category": "productivity",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "handoff"
+      ],
+      "examples": [
+        "Hand this work to a fresh background agent."
+      ],
+      "snapshot": "matt-claude-handoff"
+    },
+    {
+      "name": "implement-spec",
+      "source": "matt",
+      "path": "skills/in-progress/implement-spec",
+      "title": "Implement Spec",
+      "description": "Implement a whole specification as a ticket graph on one branch.",
+      "useWhen": "The user asks for the beta multi agent specification workflow.",
+      "category": "engineering",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "implementation"
+      ],
+      "examples": [
+        "Implement this spec across its ticket graph."
+      ],
+      "snapshot": "matt-implement-spec"
+    },
+    {
+      "name": "loop-me",
+      "source": "matt",
+      "path": "skills/in-progress/loop-me",
+      "title": "Loop Me",
+      "description": "Develop implementable workflow specifications over several sessions.",
+      "useWhen": "The user wants to refine a workflow repeatedly in a workspace.",
+      "category": "productivity",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "workflow"
+      ],
+      "examples": [
+        "Help me refine this workflow over several sessions."
+      ],
+      "snapshot": "matt-loop-me"
+    },
+    {
+      "name": "pr",
+      "source": "matt",
+      "path": "skills/in-progress/pr",
+      "title": "Pull Request Writing",
+      "description": "Write a pull request body grounded in source and evidence.",
+      "useWhen": "The user wants the beta pull request writing template.",
+      "category": "engineering",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "pull-request"
+      ],
+      "examples": [
+        "Draft a clear pull request body for this change."
+      ],
+      "snapshot": "matt-pr"
+    },
+    {
+      "name": "retro",
+      "source": "matt",
+      "path": "skills/in-progress/retro",
+      "title": "Retro",
+      "description": "Design notes for a future coding agent environment retrospective.",
+      "useWhen": "The user explicitly asks to inspect this unfinished retrospective skill.",
+      "category": "productivity",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "stub"
+      ],
+      "examples": [
+        "Review these retrospective design notes."
+      ],
+      "snapshot": "matt-retro"
+    },
+    {
+      "name": "setup-ts-deep-modules",
+      "source": "matt",
+      "path": "skills/in-progress/setup-ts-deep-modules",
+      "title": "Set Up TypeScript Deep Modules",
+      "description": "Configure dependency cruiser to enforce TypeScript package boundaries.",
+      "useWhen": "The user requests the beta TypeScript deep module setup.",
+      "category": "engineering",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "typescript"
+      ],
+      "examples": [
+        "Set up dependency cruiser for these packages."
+      ],
+      "snapshot": "matt-setup-ts-deep-modules"
+    },
+    {
+      "name": "writing-beats",
+      "source": "matt",
+      "path": "skills/in-progress/writing-beats",
+      "title": "Writing Beats",
+      "description": "Develop an article as a journey of connected beats.",
+      "useWhen": "The user wants the beta beat by beat writing workflow.",
+      "category": "productivity",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "writing"
+      ],
+      "examples": [
+        "Shape this article one beat at a time."
+      ],
+      "snapshot": "matt-writing-beats"
+    },
+    {
+      "name": "writing-fragments",
+      "source": "matt",
+      "path": "skills/in-progress/writing-fragments",
+      "title": "Writing Fragments",
+      "description": "Gather raw writing fragments before choosing a structure.",
+      "useWhen": "The user wants to collect article material without organizing it yet.",
+      "category": "productivity",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "writing"
+      ],
+      "examples": [
+        "Help me gather fragments for an article."
+      ],
+      "snapshot": "matt-writing-fragments"
+    },
+    {
+      "name": "writing-shape",
+      "source": "matt",
+      "path": "skills/in-progress/writing-shape",
+      "title": "Writing Shape",
+      "description": "Shape a raw Markdown draft into an article paragraph by paragraph.",
+      "useWhen": "The user wants the beta guided editing workflow for a draft.",
+      "category": "productivity",
+      "collection": "matt-beta",
+      "status": "experimental",
+      "tags": [
+        "beta",
+        "writing"
+      ],
+      "examples": [
+        "Shape this draft into an article."
+      ],
+      "snapshot": "matt-writing-shape"
+    },
+    {
+      "name": "git-guardrails-claude-code",
+      "source": "matt",
+      "path": "skills/misc/git-guardrails-claude-code",
+      "title": "Git Guardrails For Claude Code",
+      "description": "Set up Claude Code hooks to block dangerous Git commands.",
+      "useWhen": "The user explicitly requests those Claude Code hooks.",
+      "category": "engineering",
+      "collection": "matt-misc",
+      "status": "experimental",
+      "tags": [
+        "misc",
+        "git"
+      ],
+      "examples": [
+        "Add Claude Code hooks for risky Git commands."
+      ],
+      "snapshot": "matt-git-guardrails-claude-code"
+    },
+    {
+      "name": "migrate-to-shoehorn",
+      "source": "matt",
+      "path": "skills/misc/migrate-to-shoehorn",
+      "title": "Migrate To Shoehorn",
+      "description": "Replace TypeScript test assertions with Total TypeScript Shoehorn.",
+      "useWhen": "The user asks to migrate test files to Shoehorn.",
+      "category": "engineering",
+      "collection": "matt-misc",
+      "status": "experimental",
+      "tags": [
+        "misc",
+        "typescript"
+      ],
+      "examples": [
+        "Migrate these tests to Shoehorn."
+      ],
+      "snapshot": "matt-migrate-to-shoehorn"
+    },
+    {
+      "name": "scaffold-exercises",
+      "source": "matt",
+      "path": "skills/misc/scaffold-exercises",
+      "title": "Scaffold Exercises",
+      "description": "Create exercise directories with problems, solutions, and explainers.",
+      "useWhen": "The user asks to scaffold coding exercises.",
+      "category": "engineering",
+      "collection": "matt-misc",
+      "status": "experimental",
+      "tags": [
+        "misc",
+        "education"
+      ],
+      "examples": [
+        "Scaffold the next workshop exercises."
+      ],
+      "snapshot": "matt-scaffold-exercises"
+    },
+    {
+      "name": "setup-pre-commit",
+      "source": "matt",
+      "path": "skills/misc/setup-pre-commit",
+      "title": "Set Up Pre Commit",
+      "description": "Configure Husky, lint staged, formatting, type checks, and tests.",
+      "useWhen": "The user asks to configure pre commit automation.",
+      "category": "engineering",
+      "collection": "matt-misc",
+      "status": "experimental",
+      "tags": [
+        "misc",
+        "git-hooks"
+      ],
+      "examples": [
+        "Set up pre commit checks in this repository."
+      ],
+      "snapshot": "matt-setup-pre-commit"
+    },
+    {
+      "name": "grill-me",
+      "source": "matt",
+      "path": "skills/productivity/grill-me",
+      "title": "Grill Me",
+      "description": "Interview the user to sharpen a plan or design.",
+      "useWhen": "The user asks for probing questions about an idea.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "questions",
+        "planning"
+      ],
+      "examples": [
+        "Grill me on this product idea."
+      ],
+      "snapshot": "matt-grill-me"
+    },
+    {
+      "name": "grilling",
+      "source": "matt",
+      "path": "skills/productivity/grilling",
+      "title": "Grilling",
+      "description": "Stress test a plan, decision, or idea with probing questions.",
+      "useWhen": "The user wants to challenge their thinking.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "questions",
+        "decision"
+      ],
+      "examples": [
+        "Stress test this rollout plan."
+      ],
+      "snapshot": "matt-grilling"
+    },
+    {
+      "name": "handoff",
+      "source": "matt",
+      "path": "skills/productivity/handoff",
+      "title": "Handoff",
+      "description": "Summarize an active conversation for another agent to continue.",
+      "useWhen": "The user wants a compact and useful work handoff.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "handoff",
+        "context"
+      ],
+      "examples": [
+        "Prepare a handoff for the next agent."
+      ],
+      "snapshot": "matt-handoff"
+    },
+    {
+      "name": "teach",
+      "source": "matt",
+      "path": "skills/productivity/teach",
+      "title": "Teach",
+      "description": "Teach the user a concept through an interactive lesson.",
+      "useWhen": "The user asks to learn a skill or technical concept.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "teaching",
+        "learning"
+      ],
+      "examples": [
+        "Teach me how this system works."
+      ],
+      "snapshot": "matt-teach"
+    },
+    {
+      "name": "to-questionnaire",
+      "source": "matt",
+      "path": "skills/productivity/to-questionnaire",
+      "title": "To Questionnaire",
+      "description": "Turn unresolved decisions into a questionnaire for someone else.",
+      "useWhen": "The user needs input from another person to answer a decision.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "questions",
+        "decisions"
+      ],
+      "examples": [
+        "Turn these unknowns into a stakeholder questionnaire."
+      ],
+      "snapshot": "matt-to-questionnaire"
+    },
+    {
+      "name": "wait-what",
+      "source": "matt",
+      "path": "skills/productivity/wait-what",
+      "title": "Wait What",
+      "description": "Explain a previous answer again when it did not land.",
+      "useWhen": "The user asks for a simpler or clearer explanation.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "communication",
+        "clarity"
+      ],
+      "examples": [
+        "Explain that last answer another way."
+      ],
+      "snapshot": "matt-wait-what"
+    },
+    {
+      "name": "writing-for-agents",
+      "source": "matt",
+      "path": "skills/productivity/writing-for-agents",
+      "title": "Writing For Agents",
+      "description": "Write instructions and documents that coding agents can use reliably.",
+      "useWhen": "The user is creating skills or agent instruction files.",
+      "category": "productivity",
+      "collection": "matt-productivity",
+      "status": "stable",
+      "tags": [
+        "agents",
+        "documentation"
+      ],
+      "examples": [
+        "Help write clear AGENTS.md instructions."
+      ],
+      "snapshot": "matt-writing-for-agents"
+    },
+    {
+      "name": "brainstorming",
+      "source": "superpowers",
+      "path": "skills/brainstorming",
+      "title": "Superpowers 需求构思",
+      "description": "通过探索需求、方案与设计审阅形成可实施规格。",
+      "useWhen": "开始功能设计或需求仍有歧义时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "planning",
+        "design",
+        "superpowers"
+      ],
+      "examples": [
+        "为新功能梳理设计规格。"
+      ],
+      "snapshot": "superpowers-brainstorming"
+    },
+    {
+      "name": "diagnosing-superpowers",
+      "source": "superpowers",
+      "path": "skills/diagnosing-superpowers",
+      "title": "Superpowers 会话诊断",
+      "description": "审查 Superpowers 会话记录与证据，生成故障分析材料。",
+      "useWhen": "用户要求调查 Superpowers 运行过程或失败原因时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "diagnostics",
+        "session",
+        "superpowers"
+      ],
+      "examples": [
+        "分析某次 Superpowers 会话为什么停滞。"
+      ],
+      "snapshot": "superpowers-diagnosing-superpowers"
+    },
+    {
+      "name": "dispatching-parallel-agents",
+      "source": "superpowers",
+      "path": "skills/dispatching-parallel-agents",
+      "title": "Superpowers 并行代理",
+      "description": "把互不依赖的任务分派给隔离的子代理。",
+      "useWhen": "有两个以上可独立推进的工程任务时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "agents",
+        "parallel",
+        "superpowers"
+      ],
+      "examples": [
+        "并行调查多个独立测试失败。"
+      ],
+      "snapshot": "superpowers-dispatching-parallel-agents"
+    },
+    {
+      "name": "executing-plans",
+      "source": "superpowers",
+      "path": "skills/executing-plans",
+      "title": "Superpowers 执行计划",
+      "description": "按现有计划逐项实现并安排审阅与验证。",
+      "useWhen": "已有详细实施计划且选择当前会话执行时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "planning",
+        "implementation",
+        "superpowers"
+      ],
+      "examples": [
+        "按已确认计划逐项实施功能。"
+      ],
+      "snapshot": "superpowers-executing-plans"
+    },
+    {
+      "name": "finishing-a-development-branch",
+      "source": "superpowers",
+      "path": "skills/finishing-a-development-branch",
+      "title": "Superpowers 完成开发分支",
+      "description": "验证完成状态并准备集成、保留或清理分支。",
+      "useWhen": "实现和测试完成后需要决定分支交付方式时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "git",
+        "delivery",
+        "superpowers"
+      ],
+      "examples": [
+        "完成开发分支并选择交付方式。"
+      ],
+      "snapshot": "superpowers-finishing-a-development-branch"
+    },
+    {
+      "name": "receiving-code-review",
+      "source": "superpowers",
+      "path": "skills/receiving-code-review",
+      "title": "Superpowers 接收代码审查",
+      "description": "核实审查意见并在修改前判断技术依据。",
+      "useWhen": "收到需要落实的代码审查意见时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "review",
+        "feedback",
+        "superpowers"
+      ],
+      "examples": [
+        "逐项核查审查建议。"
+      ],
+      "snapshot": "superpowers-receiving-code-review"
+    },
+    {
+      "name": "requesting-code-review",
+      "source": "superpowers",
+      "path": "skills/requesting-code-review",
+      "title": "Superpowers 请求代码审查",
+      "description": "按任务范围请求独立代码审查。",
+      "useWhen": "功能完成或合并前需要额外审查时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "review",
+        "agents",
+        "superpowers"
+      ],
+      "examples": [
+        "邀请独立代理审查实现。"
+      ],
+      "snapshot": "superpowers-requesting-code-review"
+    },
+    {
+      "name": "subagent-driven-development",
+      "source": "superpowers",
+      "path": "skills/subagent-driven-development",
+      "title": "Superpowers 子代理开发",
+      "description": "将计划任务交给独立代理，并在每项后做规格和质量审查。",
+      "useWhen": "已有可拆解计划并有子代理调度能力时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "agents",
+        "planning",
+        "superpowers"
+      ],
+      "examples": [
+        "按计划并行完成独立开发任务。"
+      ],
+      "snapshot": "superpowers-subagent-driven-development"
+    },
+    {
+      "name": "systematic-debugging",
+      "source": "superpowers",
+      "path": "skills/systematic-debugging",
+      "title": "Superpowers 系统化调试",
+      "description": "先定位根因，再设计修复与回归验证。",
+      "useWhen": "遇到 Bug、测试失败或意外行为时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "debugging",
+        "root-cause",
+        "superpowers"
+      ],
+      "examples": [
+        "排查间歇性测试失败。"
+      ],
+      "snapshot": "superpowers-systematic-debugging"
+    },
+    {
+      "name": "test-driven-development",
+      "source": "superpowers",
+      "path": "skills/test-driven-development",
+      "title": "Superpowers 测试驱动开发",
+      "description": "以红绿重构循环实现功能和修复。",
+      "useWhen": "任务适合先写可观察失败的回归测试时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "testing",
+        "tdd",
+        "superpowers"
+      ],
+      "examples": [
+        "先补失败测试再修复 Bug。"
+      ],
+      "snapshot": "superpowers-test-driven-development"
+    },
+    {
+      "name": "using-git-worktrees",
+      "source": "superpowers",
+      "path": "skills/using-git-worktrees",
+      "title": "Superpowers Git 工作树",
+      "description": "为需要隔离的开发工作选择原生或 Git 工作树。",
+      "useWhen": "开始需要独立检出的功能开发时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "git",
+        "worktree",
+        "superpowers"
+      ],
+      "examples": [
+        "把功能开发隔离到工作树。"
+      ],
+      "snapshot": "superpowers-using-git-worktrees"
+    },
+    {
+      "name": "using-superpowers",
+      "source": "superpowers",
+      "path": "skills/using-superpowers",
+      "title": "Superpowers 技能入口",
+      "description": "说明如何发现和调用该合集的其他技能。",
+      "useWhen": "明确选择 Superpowers 完整工作流时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "routing",
+        "workflow",
+        "superpowers"
+      ],
+      "examples": [
+        "使用 Superpowers 工作流选择技能。"
+      ],
+      "snapshot": "superpowers-using-superpowers"
+    },
+    {
+      "name": "verification-before-completion",
+      "source": "superpowers",
+      "path": "skills/verification-before-completion",
+      "title": "Superpowers 完成前验证",
+      "description": "在宣称完成前运行相关验证并核对证据。",
+      "useWhen": "准备宣布代码任务完成时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "testing",
+        "verification",
+        "superpowers"
+      ],
+      "examples": [
+        "核对测试结果后报告完成状态。"
+      ],
+      "snapshot": "superpowers-verification-before-completion"
+    },
+    {
+      "name": "writing-plans",
+      "source": "superpowers",
+      "path": "skills/writing-plans",
+      "title": "Superpowers 编写计划",
+      "description": "把需求与规格拆成可执行的文件、步骤和测试。",
+      "useWhen": "已有需求规格，需要形成详细实施计划时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "planning",
+        "spec",
+        "superpowers"
+      ],
+      "examples": [
+        "为跨层功能写实施计划。"
+      ],
+      "snapshot": "superpowers-writing-plans"
+    },
+    {
+      "name": "writing-skills",
+      "source": "superpowers",
+      "path": "skills/writing-skills",
+      "title": "Superpowers 编写技能",
+      "description": "以测试驱动方法编写和验证 Agent 技能。",
+      "useWhen": "创建或改进 Agent 技能时。",
+      "category": "engineering",
+      "collection": "superpowers",
+      "status": "experimental",
+      "tags": [
+        "skills",
+        "testing",
+        "superpowers"
+      ],
+      "examples": [
+        "编写并试运行新的技能。"
+      ],
+      "snapshot": "superpowers-writing-skills"
+    },
+    {
+      "name": "gitnexus-cli",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-cli",
+      "title": "GitNexus CLI",
+      "description": "按需建立、更新、检查或清理代码图谱索引，也可生成 Wiki。",
+      "useWhen": "明确需要操作 GitNexus 本地索引或 Wiki 时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "cli",
+        "index",
+        "wiki"
+      ],
+      "examples": [
+        "给这个仓库建立 GitNexus 索引。"
+      ]
+    },
+    {
+      "name": "gitnexus-debugging",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-debugging",
+      "title": "GitNexus 调试",
+      "description": "借助代码图谱追踪错误来源、调用链和故障路径。",
+      "useWhen": "需要定位失败原因或追踪异常时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "debugging",
+        "graph"
+      ],
+      "examples": [
+        "追踪这个异常从哪里产生。"
+      ]
+    },
+    {
+      "name": "gitnexus-exploring",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-exploring",
+      "title": "GitNexus 代码探索",
+      "description": "查询架构、调用关系和执行流程以理解陌生代码。",
+      "useWhen": "需要解释代码行为或探索项目结构时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "architecture",
+        "exploration"
+      ],
+      "examples": [
+        "梳理登录流程的调用链。"
+      ]
+    },
+    {
+      "name": "gitnexus-guide",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-guide",
+      "title": "GitNexus 使用指南",
+      "description": "说明 GitNexus 图谱、MCP 资源、查询工具和工作流。",
+      "useWhen": "询问 GitNexus 自身能力与用法时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "guide",
+        "mcp"
+      ],
+      "examples": [
+        "介绍 GitNexus 可用的查询工具。"
+      ]
+    },
+    {
+      "name": "gitnexus-impact-analysis",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-impact-analysis",
+      "title": "GitNexus 影响分析",
+      "description": "在改动前评估符号依赖、受影响路径和回归风险。",
+      "useWhen": "需要判断代码改动影响范围时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "impact",
+        "dependencies"
+      ],
+      "examples": [
+        "分析修改这个函数会影响什么。"
+      ]
+    },
+    {
+      "name": "gitnexus-lfg",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-lfg",
+      "title": "GitNexus 端到端工程流程",
+      "description": "按需串联图谱规划、实施和代码审查。",
+      "useWhen": "明确要求完整规划、实施、复查流程时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "workflow",
+        "planning",
+        "review"
+      ],
+      "examples": [
+        "先规划再实施并复查这个功能。"
+      ]
+    },
+    {
+      "name": "gitnexus-pdg-query",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-pdg-query",
+      "title": "GitNexus PDG 查询",
+      "description": "查询 GitNexus 程序依赖图中的控制和数据依赖。",
+      "useWhen": "需要追踪语句条件、变量流或维护 PDG 查询时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "pdg",
+        "data-flow"
+      ],
+      "examples": [
+        "查询哪些条件控制这条语句。"
+      ]
+    },
+    {
+      "name": "gitnexus-plan",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-plan",
+      "title": "GitNexus 工程规划",
+      "description": "结合图谱与源码证据编写可执行的工程计划。",
+      "useWhen": "需要深度代码变更方案或深化现有计划时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "planning",
+        "graph"
+      ],
+      "examples": [
+        "用代码图谱规划重试机制。"
+      ]
+    },
+    {
+      "name": "gitnexus-refactoring",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-refactoring",
+      "title": "GitNexus 安全重构",
+      "description": "在重命名、抽取和模块拆分前后核对调用与影响。",
+      "useWhen": "明确要求重构已有代码时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "refactoring",
+        "impact"
+      ],
+      "examples": [
+        "评估并拆分这个模块。"
+      ]
+    },
+    {
+      "name": "gitnexus-review",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-review",
+      "title": "GitNexus 代码审查",
+      "description": "审查 PR、提交范围或本地差异的回归与测试风险。",
+      "useWhen": "需要代码审查或合并风险判断时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "review",
+        "regression"
+      ],
+      "examples": [
+        "审查这个 PR 的潜在回归。"
+      ]
+    },
+    {
+      "name": "gitnexus-taint-analysis",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-taint-analysis",
+      "title": "GitNexus 污点分析",
+      "description": "分析或维护 GitNexus 自身的 CFG、污点和 PDG 子系统。",
+      "useWhen": "处理 GitNexus 数据流发现或源码到汇点路径时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "taint",
+        "pdg"
+      ],
+      "examples": [
+        "解释这条污点路径为何未被识别。"
+      ]
+    },
+    {
+      "name": "gitnexus-work",
+      "source": "gitnexus",
+      "path": "gitnexus-claude-plugin/skills/gitnexus-work",
+      "title": "GitNexus 计划实施",
+      "description": "按计划实施代码变更并检查影响、测试与提交门禁。",
+      "useWhen": "已明确授权按 GitNexus 计划修改代码时。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "stable",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "implementation",
+        "impact"
+      ],
+      "examples": [
+        "按已批准的工程计划实施。"
+      ]
+    },
+    {
+      "name": "gitnexus-pr-swarm-review",
+      "source": "gitnexus",
+      "path": ".claude/skills/gitnexus-pr-swarm-review",
+      "title": "GitNexus PR Swarm 评审",
+      "description": "调用 GitNexus 仓库专用 Claude Swarm 评审编排。",
+      "useWhen": "仅在 GitNexus 上游仓库及其 Claude Swarm 环境中按需评审 PR。",
+      "category": "engineering",
+      "collection": "gitnexus",
+      "status": "experimental",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "tags": [
+        "claude",
+        "swarm",
+        "review"
+      ],
+      "examples": [
+        "在 GitNexus 仓库用 Claude Swarm 评审 PR。"
+      ]
+    }
   ]
 }

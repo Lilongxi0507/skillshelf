@@ -125,18 +125,18 @@ test('catalog archive is metadata only and retains exact verified public catalog
   assert.throws(() => verifyCatalogArchive(makeTarball(fixtureCatalogArchive(local)), catalog, api), /localArtifact/);
 });
 
-test('publication plans have complete 18-item next/public release identity and SRI', () => {
+test('publication plans retain the reviewed package count and SRI', () => {
   const bytes = Buffer.from('verified fixture');
-  const rows = Array.from({ length: 16 }, (_, index) => publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf-skill-fixture-${index}`, version, `artifacts/fixture-${index}.tgz`, bytes, api));
+  const rows = Array.from({ length: 16 }, (_, index) => publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf-pack-fixture-${index}`, version, `artifacts/fixture-${index}.tgz`, bytes, api));
   rows.push(publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf-catalog`, version, `catalog-${version}.tgz`, bytes, api));
-  assert.equal(publicationPlan(rows, api).complete, false);
-  assert.throws(() => publicationPlan(rows, api, true), /count/);
+  assert.equal(publicationPlan(rows, api, 16).complete, false);
+  assert.throws(() => publicationPlan(rows, api, 16, true), /count/);
   rows.push(publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf`, version, `cli-${version}.tgz`, bytes, api));
-  const plan = publicationPlan(rows, api, true);
+  const plan = publicationPlan(rows, api, 16, true);
   assert.equal(plan.packages.length, 18); assert.equal(plan.complete, true); assert.equal(plan.published, false);
   for (const row of plan.packages) { assert.deepEqual(Object.keys(row).sort(), ['access', 'file', 'integrity', 'name', 'repository', 'tag', 'version']); assert.equal(row.tag, 'next'); assert.equal(row.access, 'public'); assert.equal(row.repository, api.REPOSITORY_URL); assert.equal(row.integrity, integrityFor(bytes)); }
-  assert.throws(() => publicationPlan([...rows.slice(0, 17), rows[0]], api, true), /unique/);
-  assert.throws(() => publicationPlan(rows.map((row, index) => index ? row : { ...row, tag: 'latest' }), api, true), /Unreviewed/);
+  assert.throws(() => publicationPlan([...rows.slice(0, 17), rows[0]], api, 16, true), /unique/);
+  assert.throws(() => publicationPlan(rows.map((row, index) => index ? row : { ...row, tag: 'latest' }), api, 16, true), /Unreviewed/);
   assert.throws(() => publicationEntry('@unreviewed/skillshelf', version, 'cli.tgz', bytes, api), /identity/);
   assert.throws(() => publicationEntry(`${api.ALLOWED_SCOPE}/skillshelf`, version, '../cli.tgz', bytes, api));
 });

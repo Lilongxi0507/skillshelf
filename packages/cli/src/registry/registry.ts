@@ -4,11 +4,11 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { CatalogEntry, Context, SkillManifest } from '../types.js';
 import { loadCatalog } from '../catalog/catalog.js';
-import { loadState } from '../store/state.js';
-import { validateHomeLocation } from '../agents/storage-boundary.js';
+import { validateStoredHomeLocation } from '../store/state.js';
 import { ensurePrivateDirectory as ensurePrivateHome } from '../runtime/privacy.js';
 import { chmodTree } from '../store/local.js';
 import { ALLOWED_SCOPE, canonicalJson, LIMITS, validateCatalog, validateManifest, verifyTree } from '../validation.js';
+import { CLI_VERSION } from '../release.js';
 import { localArtifactPath, readRegularFile } from './files.js';
 import { fetchRegistryBytes, resolveNpmRelease } from './http.js';
 import { extractVerifiedSkill, verifySkillArchive } from './tar.js';
@@ -37,7 +37,7 @@ export async function acquireSkill(ctx: Context, entry: CatalogEntry): Promise<{
  * Local paths are NEVER inherited from a lock; only the explicit active fixture can grant one.
  */
 export async function acquireLockedSkill(ctx: Context, entry: CatalogEntry): Promise<{ manifest: SkillManifest; directory: string; artifact: string }> {
-  const normalized = validateCatalog({ schemaVersion: 1, catalogVersion: '0.1.0-preview.2', minCliVersion: '0.1.0-preview.2', scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Explicit project lock', skills: [entry.id] }], skills: [entry] }).skills[0]!;
+  const normalized = validateCatalog({ schemaVersion: entry.kind === 'pack' ? 2 : 1, catalogVersion: CLI_VERSION, minCliVersion: CLI_VERSION, scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Explicit project lock', skills: [entry.id] }], skills: [entry] }).skills[0]!;
   if (normalized.localArtifact !== undefined && !ctx.catalogPath) throw new Error('Project locks cannot authorize local artifacts');
   if (ctx.catalogPath) {
     const catalog = await loadCatalog(ctx), fixture = catalog.skills.find(item => item.id === entry.id);
@@ -52,7 +52,7 @@ export async function acquireLockedSkill(ctx: Context, entry: CatalogEntry): Pro
   return acquireVerifiedEntry(ctx, normalized);
 }
 async function acquireVerifiedEntry(ctx: Context, entry: CatalogEntry): Promise<{ manifest: SkillManifest; directory: string; artifact: string }> {
-  await validateHomeLocation(ctx,Object.values((await loadState(ctx)).targets));
+  await validateStoredHomeLocation(ctx);
   const home = path.resolve(ctx.home), store = path.join(home, 'store'), artifacts = path.join(home, 'artifacts');
   const object = path.join(store, entry.contentDigest);
   const artifact = path.join(artifacts, `${entry.contentDigest}-${createHash('sha256').update(entry.integrity).digest('hex').slice(0, 16)}.tgz`);

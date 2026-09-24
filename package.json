@@ -1,6 +1,6 @@
 {
   "name": "skillshelf-workspace",
-  "version": "0.1.0-preview.2",
+  "version": "0.2.0-preview.1",
   "private": true,
   "type": "module",
   "workspaces": ["packages/cli"],

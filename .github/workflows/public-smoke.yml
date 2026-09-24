@@ -6,7 +6,7 @@ on:
       expected_version:
         description: Exact version expected from the next tag
         required: true
-        default: 0.1.0-preview.2
+        default: 0.2.0-preview.1
 
 permissions:
   contents: read
@@ -74,12 +74,12 @@ jobs:
             throw
           }
           $catalog = Invoke-SkillShelf ($options + @('list'))
-          if (@($catalog.skills).Count -ne 16) { throw 'Public catalog does not contain 16 skills' }
+          if (@($catalog.skills).Count -ne 8) { throw 'Public catalog does not contain 8 packs' }
 
-          Invoke-SkillShelf ($options + @('install', 'design-taste-frontend', '--yes')) | Out-Null
+          Invoke-SkillShelf ($options + @('install', 'taste', '--yes')) | Out-Null
           $agent = Invoke-SkillShelf ($options + @('agents', 'add', 'custom', '--path', $agentPath, '--mode', 'copy', '--yes'))
           if (-not $agent.target.id) { throw 'Custom Agent target was not registered' }
-          Invoke-SkillShelf ($options + @('enable', 'design-taste-frontend', '--agent', $agent.target.id, '--yes')) | Out-Null
+          Invoke-SkillShelf ($options + @('enable', 'taste', '--agent', $agent.target.id, '--yes')) | Out-Null
           $verification = Invoke-SkillShelf ($options + @('verify'))
           if (-not $verification.ok) { throw 'Installed skill verification failed' }
           if (-not (Test-Path -LiteralPath (Join-Path $agentPath 'design-taste-frontend/SKILL.md') -PathType Leaf)) { throw 'Managed Agent copy is missing SKILL.md' }

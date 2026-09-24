@@ -5,12 +5,28 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { validateHomeLocation } from '../packages/cli/dist/agents/storage-boundary.js';
 import { resolveAgentTarget } from '../packages/cli/dist/agents/agents.js';
+import { importLibrary } from '../packages/cli/dist/commands/portable.js';
+import { emptyState, initHome } from '../packages/cli/dist/store/state.js';
+import { transact } from '../packages/cli/dist/transactions/transaction.js';
+import { updateSkills } from '../packages/cli/dist/manager.js';
+import { refreshCatalog } from '../packages/cli/dist/catalog/catalog.js';
 
 async function fixture(t) {
   const root = await mkdtemp(path.join(process.env.SKILLSHELF_TEST_TMP ?? tmpdir(), 'skillshelf-boundary-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const userHome = path.join(root, 'user'); await mkdir(userHome, { mode: 0o700 });
   return { root, userHome, options: { home: userHome, env: {} } };
+}
+
+async function recordedProjectWithoutTarget(t) {
+  const { root } = await fixture(t);
+  const project = path.join(root, 'project'); await mkdir(project);
+  const home = path.join(project, '.agents', 'skills', 'data');
+  await mkdir(home, { recursive: true, mode: 0o700 });
+  const state = emptyState();
+  state.projects[project] = { root: project, specPath: path.join(project, 'skillshelf.json'), lockPath: path.join(project, 'skillshelf-lock.json'), selections: {} };
+  await writeFile(path.join(home, 'state.json'), JSON.stringify(state), { mode: 0o600 });
+  return { root, project, home };
 }
 
 test('boundary protects absent default roots in both directions without creating anything', async (t) => {
@@ -71,6 +87,69 @@ test('registered target scopes imply native project roots without separate proje
   const { root, options } = await fixture(t); const project = path.join(root, 'project'); await mkdir(project);
   const target = await resolveAgentTarget('custom', { ...options, project, path: path.join(project, 'custom') });
   await assert.rejects(validateHomeLocation({ home: path.join(project, '.agents', 'skills', 'data') }, [target], options), /disjoint/);
+});
+
+test('project import rejects a data home inside an unregistered Agent scan root before creating it', async (t) => {
+  const { root } = await fixture(t);
+  const project = path.join(root, 'project'); await mkdir(project);
+  const home = path.join(project, '.agents', 'skills', 'data');
+  const input = path.join(root, 'bundle'); await mkdir(input);
+  await writeFile(path.join(input, 'skillshelf-export.json'), JSON.stringify({ schemaVersion: 1, format: 'skillshelf-bundle', createdAt: new Date().toISOString(), skills: [], agents: [] }));
+  await assert.rejects(importLibrary({ home, offline: true }, input, { project }), /disjoint/);
+  assert.deepEqual(await readdir(project), []);
+});
+
+test('selection JSON files import without treating them as directories', async (t) => {
+  const { root } = await fixture(t);
+  const input = path.join(root, 'selection.json');
+  await writeFile(input, JSON.stringify({ schemaVersion: 1, format: 'skillshelf-selection', createdAt: new Date().toISOString(), skills: [], agents: [] }));
+  const result = await importLibrary({ home: path.join(root, 'data'), offline: true }, input);
+  assert.deepEqual(result.imported, []);
+});
+
+test('direct project transaction checks unregistered scan roots before initializing data home', async (t) => {
+  const { root } = await fixture(t);
+  const project = path.join(root, 'project'); await mkdir(project);
+  const home = path.join(project, '.agents', 'skills', 'data');
+  const next = emptyState();
+  next.projects[project] = { root: project, specPath: path.join(project, 'skillshelf.json'), lockPath: path.join(project, 'skillshelf-lock.json'), selections: {} };
+  await assert.rejects(transact({ home, offline: true }, emptyState(), next, []), /disjoint/);
+  assert.deepEqual(await readdir(project), []);
+});
+
+test('project update rejects overlapping home before any online catalog refresh', async (t) => {
+  const { root } = await fixture(t);
+  const project = path.join(root, 'project'); await mkdir(project);
+  const home = path.join(project, '.agents', 'skills', 'data');
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => { requests++; throw new Error('network reached before project boundary'); });
+  await assert.rejects(updateSkills({ home, offline: false }, [], { project }), /disjoint/);
+  assert.equal(requests, 0);
+  assert.deepEqual(await readdir(project), []);
+});
+
+test('home initialization protects recorded projects without Agent targets', async (t) => {
+  const { home } = await recordedProjectWithoutTarget(t);
+  await assert.rejects(initHome({ home, offline: true }), /disjoint/);
+  assert.deepEqual(await readdir(home), ['state.json']);
+});
+
+test('catalog refresh protects recorded projects before network or cache writes', async (t) => {
+  const { home } = await recordedProjectWithoutTarget(t);
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => { requests++; throw new Error('network reached before recorded project boundary'); });
+  await assert.rejects(refreshCatalog({ home, offline: false }), /disjoint/);
+  assert.equal(requests, 0);
+  assert.deepEqual(await readdir(home), ['state.json']);
+});
+
+test('online update without project protects recorded project before network or writes', async (t) => {
+  const { home } = await recordedProjectWithoutTarget(t);
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => { requests++; throw new Error('network reached before recorded project boundary'); });
+  await assert.rejects(updateSkills({ home, offline: false }, []), /disjoint/);
+  assert.equal(requests, 0);
+  assert.deepEqual(await readdir(home), ['state.json']);
 });
 
 test('canonical existing ancestors catch aliases; broken/unknown roots fail closed', { skip: process.platform === 'win32' }, async (t) => {

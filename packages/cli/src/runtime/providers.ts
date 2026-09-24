@@ -3,8 +3,7 @@ import { isIP } from 'node:net';
 import path from 'node:path';
 import type { Context } from '../types.js';
 import { fail } from '../errors.js';
-import { loadState } from '../store/state.js';
-import { validateHomeLocation } from '../agents/storage-boundary.js';
+import { validateStoredHomeLocation } from '../store/state.js';
 import { assertPrivatePath, canonicalStorageHome, createPrivateFile, ensurePrivateDirectory, readPrivateFile, temporaryName, PRIVATE_CONFIG_MAX_BYTES } from './privacy.js';
 
 export type ProviderKind = 'search' | 'image' | 'video';
@@ -178,7 +177,7 @@ function view(config: ProviderConfig): ProvidersView {
 export async function listProviders(ctx: Context): Promise<ProvidersView> { return view(await loadProviders(ctx)); }
 
 async function mutate(ctx: Context, change: (config: ProviderConfig) => void): Promise<ProvidersView> {
-  await validateHomeLocation(ctx,Object.values((await loadState(ctx)).targets));
+  await validateStoredHomeLocation(ctx);
   const file = await providerConfigPath(ctx);
   await ensurePrivateDirectory(path.dirname(path.dirname(file)));
   await ensurePrivateDirectory(path.dirname(file));

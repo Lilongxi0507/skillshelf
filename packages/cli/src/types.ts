@@ -1,6 +1,8 @@
 export interface FileEntry { path: string; size: number; sha256: string; executable: boolean }
 export interface RuntimeDeclaration { kind: 'instructions' | 'python' | 'node'; entrypoint?: string; minimumVersion?: string; requiresNetwork: boolean; providers?: Array<'search' | 'image' | 'video'>; dependencies?: string[] }
-export interface SkillManifest { schemaVersion: 1; id: string; name: string; files: FileEntry[]; contentDigest: string; runtime: RuntimeDeclaration }
+export interface PackMember { id: string; name: string; path: string; legacyId: string; title: string; description: string; useWhen: string; examples: string[]; category: string; subcategory: string; tags: string[]; purpose: string; stack: string[]; dependencies: string[]; license: string; source: SkillSource; runtime: RuntimeDeclaration }
+export interface SkillManifest { schemaVersion: 1 | 2; id: string; name: string; files: FileEntry[]; contentDigest: string; runtime: RuntimeDeclaration; members?: PackMember[] }
+export interface PackExposure { all: boolean; enabled: string[]; disabled: string[] }
 export interface SkillSource { repository?: string; commit?: string; path?: string; panelRevision?: string; url?: string }
 export interface CatalogEntry {
   id: string; name: string; title: string; description: string; useWhen: string; examples: string[];
@@ -8,10 +10,11 @@ export interface CatalogEntry {
   status: 'recommended' | 'stable' | 'legacy' | 'experimental'; runtime: RuntimeDeclaration;
   packageName: string; version: string; integrity: string; contentDigest: string; fileCount: number; unpackedSize: number;
   localArtifact?: string;
+  kind?: 'pack'; members?: PackMember[]; matchedMembers?: Array<{ id: string; reasons: string[] }>;
 }
 export interface Catalog {
-  schemaVersion: 1; catalogVersion: string; minCliVersion: string; scope: string;
-  categories: Array<{ id: string; title: string }>;
+  schemaVersion: 1 | 2; catalogVersion: string; minCliVersion: string; scope: string;
+  categories: Array<{ id: string; title: string; children?: Array<{ id: string; title: string }> }>;
   collections: Array<{ id: string; title: string; description: string; skills: string[] }>;
   skills: CatalogEntry[];
 }
@@ -19,15 +22,17 @@ export type AgentId = 'claude-code' | 'codex' | 'opencode' | 'dsh' | 'cursor' | 
 export interface AgentTarget { id: string; agent: AgentId; label: string; scope: string; path: string; mode: 'auto' | 'link' | 'copy'; scanRoots: string[]; discovery: 'unverified' | 'verified'; }
 export interface Release { key: string; id: string; name: string; version: string; packageName: string; integrity: string; contentDigest: string; manifest: SkillManifest; source: SkillSource; installedAt: string; origin: 'npm' | 'local' | 'panel'; catalogEntry?: CatalogEntry; }
 export interface Selection { releaseKey: string; pinned: boolean; history: string[]; }
-export interface Projection { key: string; path: string; releaseKey: string; mode: 'link' | 'copy'; targetIds: string[]; }
+export interface Projection { key: string; path: string; releaseKey: string; mode: 'link' | 'copy'; targetIds: string[]; memberId?: string; memberPath?: string; }
 export interface ProjectRecord { root: string; specPath: string; lockPath: string; selections: Record<string, Selection>; specHash?: string; lockHash?: string; }
 export interface State {
-  schemaVersion: 1; generation: number; lastTransactionId: string | null;
+  schemaVersion: 1 | 2; generation: number; lastTransactionId: string | null;
   releases: Record<string, Release>; selections: Record<string, Selection>; targets: Record<string, AgentTarget>;
   projections: Record<string, Projection>; projects: Record<string, ProjectRecord>;
+  exposures?: Record<string, Record<string, PackExposure>>;
+  preferences?: Record<string, { favorite?: boolean; tags?: string[]; category?: string; subcategory?: string }>;
 }
-export interface ProjectSpec { schemaVersion: 1; skills: Record<string, { version?: string; pinned?: boolean }>; agents: Array<{ agent: AgentId; relativePath?: string; mode?: 'auto' | 'link' | 'copy'; skills?: string[] }> }
-export interface ProjectLock { schemaVersion: 1; catalogVersion: string; skills: Array<{ id: string; name: string; packageName: string; version: string; integrity: string; contentDigest: string; entry?: CatalogEntry }>; agents: ProjectSpec['agents']; }
+export interface ProjectSpec { schemaVersion: 1 | 2; skills: Record<string, { version?: string; pinned?: boolean }>; agents: Array<{ agent: AgentId; relativePath?: string; mode?: 'auto' | 'link' | 'copy'; skills?: string[]; exposures?: Record<string, PackExposure> }> }
+export interface ProjectLock { schemaVersion: 1 | 2; catalogVersion: string; skills: Array<{ id: string; name: string; packageName: string; version: string; integrity: string; contentDigest: string; entry?: CatalogEntry; manifest?: SkillManifest; source?: SkillSource; origin?: Release['origin'] }>; agents: ProjectSpec['agents']; }
 export interface Context { home: string; offline: boolean; catalogPath?: string; json?: boolean; }
 export interface MutationOptions { dryRun?: boolean; yes?: boolean; project?: string; agents?: string[]; mode?: 'auto' | 'link' | 'copy'; }
 export interface OperationResult { [key: string]: unknown }

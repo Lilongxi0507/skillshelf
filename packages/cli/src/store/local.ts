@@ -17,7 +17,9 @@ export async function chmodTree(root:string,readonly:boolean):Promise<void>{
   if(s.isDirectory())for(const name of await readdir(root))await chmodTree(join(root,name),readonly);
 }
 export async function importTree(ctx:Context,source:string,input:SkillManifest):Promise<string>{
-  const manifest=validateManifest(input);await verifyTree(source,manifest);validateSkillDocument(await readRegularFile(join(source,'SKILL.md'),1024*1024),manifest.name);await initHome(ctx);
+  const manifest=validateManifest(input);await verifyTree(source,manifest);
+  for (const member of manifest.members || [{name:manifest.name,path:''}]) validateSkillDocument(await readRegularFile(join(source,member.path,'SKILL.md'),1024*1024),member.name);
+  await initHome(ctx);
   const directory=storePath(ctx,manifest.contentDigest),object=join(ctx.home,'store',manifest.contentDigest);
   if(await exists(object)){await verifyTree(directory,manifest);return directory;}
   await ensurePrivateDir(join(ctx.home,'store'));const staging=await mkdtemp(join(ctx.home,'store','.local-'));

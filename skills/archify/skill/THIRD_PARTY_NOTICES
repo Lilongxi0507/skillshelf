@@ -1,0 +1,27 @@
+Archify v2.16.0 third-party attribution
+
+The original Archify LICENSE is retained unchanged. It credits tt-a1i and
+Cocoon AI's architecture-diagram-generator under MIT.
+
+The bundled renderers/shared/generated-brand-marks.mjs contains 107 vector
+marks. Most were generated from Simple Icons 16.28.0, whose collection is
+CC0-1.0 (https://github.com/simple-icons/simple-icons). The OpenAI mark comes
+from OpenAI's published brand guidelines. Each entry in the generated file
+records its source and any available guidelines and mark-specific license.
+
+The generated metadata explicitly identifies these mark-specific licenses:
+
+  angular: CC-BY-4.0
+  apache-airflow, apache-kafka: Apache-2.0
+  dotnet: CC0-1.0
+  javascript: MIT
+  jenkins: CC-BY-SA-3.0
+  rust: CC-BY-SA-4.0
+  vue: CC-BY-NC-SA-4.0
+
+An absent mark-specific license in the generated metadata is not a grant of
+rights. Brand names and marks may be trademarks or subject to provider usage
+guidelines. Simple Icons' collection license does not override those terms.
+
+assets/template.html may load JetBrains Mono from Google Fonts when an HTML
+artifact is viewed. No font binary is included in this snapshot.

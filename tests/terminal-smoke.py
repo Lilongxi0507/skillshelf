@@ -245,7 +245,7 @@ class Terminal:
 
 
 def assert_main(terminal: Terminal, since: int = 0) -> None:
-    terminal.expect("全局库 0 项", "0 个Agent目标", "浏览与安装技能", "退出", since=since)
+    terminal.expect("全局库 0 项", "0 个Agent目标", "发现技能包", "退出", since=since)
 
 
 def exit_main(terminal: Terminal) -> None:
@@ -282,19 +282,27 @@ def resize_long_prompt_and_cancel(terminal: Terminal, columns: int) -> None:
 
 
 def shared_query(catalog: dict) -> str:
-    """Find a real catalog label substring matching at least two selectable rows."""
-    titles = [entry["title"] for entry in catalog["skills"]]
-    require(len(titles) >= 2, "preview smoke needs at least two catalog skills")
+    """Find a real package/member substring matching at least two selectable rows."""
+    entries = catalog["skills"]
+    require(len(entries) >= 2, "preview smoke needs at least two catalog packages")
+    searchable = []
+    for entry in entries:
+        member_text = "\n".join(
+            " ".join(str(member.get(field, "")) for field in
+                      ("id", "name", "title", "description", "purpose", "category", "subcategory"))
+            for member in entry.get("members", [])
+        )
+        searchable.append("\n".join((entry.get("title", ""), entry.get("description", ""), member_text)))
     candidates = ["Taste"]
-    for title in titles:
-        candidates.extend(re.findall(r"[A-Za-z][A-Za-z0-9/-]+", title))
-        candidates.extend(title[index:index + 2] for index in range(len(title) - 1)
-                          if all("\u4e00" <= char <= "\u9fff" for char in title[index:index + 2]))
+    for text in searchable:
+        candidates.extend(re.findall(r"[A-Za-z][A-Za-z0-9/-]+", text))
+        candidates.extend(text[index:index + 2] for index in range(len(text) - 1)
+                          if all("\u4e00" <= char <= "\u9fff" for char in text[index:index + 2]))
     for query in dict.fromkeys(candidates):
-        count = sum(query.casefold() in title.casefold() for title in titles)
-        if 2 <= count < len(titles):
+        count = sum(query.casefold() in text.casefold() for text in searchable)
+        if 2 <= count < len(searchable):
             return query
-    raise AssertionError("catalog needs a shared title keyword matching 2+ but not all skills for real search smoke")
+    raise AssertionError("catalog needs a shared package/member keyword matching 2+ but not all packages for real search smoke")
 
 
 def preview_without_install(terminal: Terminal, query: str) -> None:

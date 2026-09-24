@@ -11,8 +11,9 @@ const CLI_MODULES = Object.freeze([
   'registry/files', 'registry/http', 'registry/registry', 'registry/tar', 'release',
   'runtime/privacy', 'runtime/providers', 'runtime/runtime',
   'store/fs', 'store/local', 'store/projections', 'store/state',
-  'transactions/locks', 'transactions/operations', 'transactions/transaction',
-  'tui/format', 'tui/ui', 'types', 'validation',
+  'transactions/core-guard', 'transactions/locks', 'transactions/operations', 'transactions/transaction',
+  'tui/format', 'tui/ui', 'types', 'validation', 'core', 'mcp/discovery', 'mcp/manager',
+  'agents/onboarding', 'authoring', 'profiles',
 ]);
 export const CLI_ALLOWED_FILES = Object.freeze([
   'package/LICENSE', 'package/README.md', 'package/package.json', 'package/dist/catalog/bootstrap.json',
@@ -27,7 +28,7 @@ export async function auditCliArchive(bytes, { api, expectedCatalog } = {}) {
   const get = filename => files.find(file => file.path === filename);
   for (const name of ['package/LICENSE', 'package/README.md']) assert.ok(get(name).data.length, 'Missing legal/user documentation');
   const metadata = api.parseJsonFile(get('package/package.json'));
-  const metadataKeys = new Set(['name', 'version', 'description', 'type', 'license', 'engines', 'bin', 'files', 'publishConfig', 'repository', 'homepage', 'bugs', 'dependencies']);
+  const metadataKeys = new Set(['name', 'version', 'description', 'type', 'license', 'engines', 'bin', 'exports', 'files', 'publishConfig', 'repository', 'homepage', 'bugs', 'dependencies']);
   assert.ok(Object.keys(metadata).every(key => metadataKeys.has(key)), 'Unreviewed CLI package metadata');
   assert.equal(metadata.name, `${api.ALLOWED_SCOPE}/skillshelf`);
   assert.equal(metadata.version, api.CLI_VERSION);
@@ -39,7 +40,7 @@ export async function auditCliArchive(bytes, { api, expectedCatalog } = {}) {
   assert.deepEqual(Object.keys(metadata.dependencies ?? {}).sort(), ['@clack/prompts', 'commander', 'picocolors', 'tar', 'yaml', 'zod']);
   assert.ok(Object.values(metadata.dependencies).every(value => typeof value === 'string' && api.EXACT_VERSION.test(value)), 'Dependencies must have exact reviewed versions');
   const bootstrap = api.validatePublicCatalog(api.parseJsonFile(get('package/dist/catalog/bootstrap.json')));
-  assert.equal(bootstrap.skills.length, 16); assert.equal(bootstrap.catalogVersion, metadata.version);
+  assert.ok(bootstrap.skills.length > 0); assert.equal(bootstrap.catalogVersion, metadata.version);
   assert.equal(bootstrap.scope, api.ALLOWED_SCOPE);
   assert.ok(bootstrap.skills.every(entry => entry.version === metadata.version));
   if (expectedCatalog) assert.equal(api.canonicalJson(bootstrap), api.canonicalJson(expectedCatalog), 'CLI bootstrap is stale; packSkills -> copyCatalog -> npmPackCLI -> prepare');
