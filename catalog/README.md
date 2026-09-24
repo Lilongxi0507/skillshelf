@@ -2,7 +2,7 @@
 
 ## 发布状态
 
-本目录对应尚未发布的 10 包 `0.2.0` 本地候选，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。历史发布与标签记录不代表本候选；公共注册表和跨平台验证仍须针对新候选重新核对。现有[公开验证记录](../PUBLIC-VERIFICATION.md)只覆盖历史 `preview.1` CI。
+本目录对应尚未发布的 10 包 `0.2.0` 本地候选，npm 命名空间为 `@llx17669475`，公开源码见 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。历史发布与标签记录不代表本候选；公共注册表和跨平台验证仍须针对新候选重新核对。当前候选结果见[公开验证记录](../PUBLIC-VERIFICATION.md)。
 
 当前候选由 10 个包组成：
 

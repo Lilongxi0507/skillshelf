@@ -1,6 +1,6 @@
 # 参与 SkillShelf
 
-感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 10 包 `0.2.0` 候选（8 个完整技能套件、目录和 CLI）。当前候选的三平台 Node 22/24 CI 已通过；发布进度和验证范围以 [PUBLIC-VERIFICATION.md](PUBLIC-VERIFICATION.md) 为准。
+感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 10 包 `0.2.0` 候选（8 个完整技能套件、目录和 CLI）。当前候选的三平台 Node 22/24 CI 正在验证；发布进度和验证范围以 [PUBLIC-VERIFICATION.md](PUBLIC-VERIFICATION.md) 为准。
 
 ## 开发环境
 
