@@ -75,14 +75,14 @@ scripts; runtime declaration is Python >=3.10, `dependencies: []`.
 
 ## Release integrity and limitations
 
-The current local candidate is `0.2.0-preview.1`. Final content hashes, SRI, byte
+The current local candidate is `0.2.1`. Final content hashes, SRI, byte
 sizes and complete manifests come from the maintained-tar-generated **actual
 artifact**, verified by `pack-skills.mjs`, not this narrative table.
 
 Archive hashes above record the observed pinned codeload representation; the
 pinned commit and per-file content inventory remain the authoritative reviewed
 source identity if GitHub changes gzip framing later. The reviewed publication
-target is `@llx17669475`, version `0.2.0-preview.1`, channel `next`, with standalone
+target is `@llx17669475`, version `0.2.1`, channel `latest`, with standalone
 source at https://github.com/Lilongxi0507/skillshelf. This provenance record does
 not itself assert publication success; verify the exact package on npm. Source
 licenses and complete content are independent of the registry account name.

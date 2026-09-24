@@ -1,19 +1,22 @@
-# SkillShelf 0.2.0 verification
+# SkillShelf 0.2.1 verification
 
 This stable release candidate contains 8 complete packs with 83 skill members, one catalog and the CLI. Publication is pending; a source commit or local build is not an npm release.
 
-The stable CLI follows `latest`. Install an exact registry version when reproducing a release. Full source licenses and pinned provenance are retained in `catalog/PROVENANCE.md`.
+`0.2.1` re-freezes the `0.2.0` stable candidate after a full bug-fix pass; per repository rules the changed CLI bytes require a new exact version. Fixes carried by this candidate:
 
-Current candidate validation and registry read-back will be recorded after completion. Earlier preview CI does not certify these exact stable artifacts. Native Agent discovery and paid provider calls are separate from CLI tests. Windows interactive testing by the maintainer remains separate from automated CI.
+- `uninstall` now refuses to remove the OS home directory **or any directory containing it**; the previous guard only blocked exact equality and was reproduced deleting a whole tree that contained `$HOME`. Covered by a regression test plus an end-to-end CLI check.
+- JSON error output no longer echoes a global option value as the command name (`--home <path>` used to appear as `command`).
+- `author remove` and `profiles save` now require the standard preview/confirmation gate (non-interactive `--yes`/`--dry-run`), with dry-run previews added to the core functions.
+- The registry client `User-Agent` now follows `CLI_VERSION` instead of a hardcoded `0.1`.
+- Draft publication enforces the same strict exact-semver grammar as the catalog (`1.2.3-01` is now rejected up front).
+- The legacy-member install conflict message now gives actionable CLI guidance instead of only internal API names.
 
-## Linux validation, 2026-09-24
+## Local validation, 2026-09-24 (this candidate)
 
-Node 24 isolated run: 162 tests, 160 passed, 2 skipped (native Windows ACL and installed-bin setup). The installed-bin test was then run separately with the real archive and passed, including update to a strictly newer synthetic version, rollback, integrity and interrupted-operation recovery. Four POSIX PTY scenarios passed. All 10 actual archives were audited.
+Node 26 isolated run: 167 tests, 165 passed, 0 failed, 2 skipped (Windows ACL and installed-bin setup, both platform-conditional). TDD red-green cycle was observed for every fix (6 failing tests against the unmodified build, then 24/24 after the fixes). POSIX PTY smoke: 4/4 scenarios passed. All 10 candidate archives are re-audited from the fresh 0.2.1 publication plan before any submission.
 
-The initial CI exposed a stale expected update-fixture version; this test was corrected. The candidate runtime and package bytes did not change. Current CI: https://github.com/Lilongxi0507/skillshelf/actions/runs/35974131784 .
+## Public registry state at re-freeze
 
-## npm publication blocked
+The earlier `0.2.0-preview.1` preview attempt published 7 of the 8 pack identities on 2026-09-24 before npm returned E429. Those 7 packages exist at `0.2.0-preview.1`, were first-published manually with official browser 2FA, and were then bound and read back as Trusted Publishers for `Lilongxi0507/skillshelf` `publish.yml`; the CLI and catalog bindings are also confirmed. `skillshelf-pack-gitnexus` was never created (registry 404) and still requires a manual first publication plus its own binding.
 
-On 2026-09-24, the attempt to publish `@llx17669475/skillshelf-pack-gitnexus@0.2.0` returned E429. Subsequent publication stopped. No stable 0.2.0 release completion is claimed. The account identity check succeeded, but the registry has not supplied a confirmed quota reset time. No account, package-name or credential workaround was attempted.
-
-Linux and macOS native CI passed on Node 22 and 24 for commit deb6924; Windows jobs are still running as of this record. Registry read-back confirms GitNexus and CLI exact 0.2.0 versions are absent (404).
+Candidate CI and registry read-back for the exact 0.2.1 versions will be recorded after completion. Native Agent discovery and paid provider calls remain separate from CLI tests. Windows interactive testing by the maintainer remains separate from automated CI.

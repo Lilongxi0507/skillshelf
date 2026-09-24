@@ -1,6 +1,6 @@
 {
   "name": "@llx17669475/skillshelf",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "个人精选、本机共享的完整 Agent 技能库",
   "type": "module",
   "license": "MIT",

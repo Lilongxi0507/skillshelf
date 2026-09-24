@@ -1,6 +1,6 @@
 # 参与 SkillShelf
 
-感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 10 包 `0.2.0` 候选（8 个完整技能套件、目录和 CLI）。当前候选的三平台 Node 22/24 CI 正在验证；发布进度和验证范围以 [PUBLIC-VERIFICATION.md](PUBLIC-VERIFICATION.md) 为准。
+感谢帮助完善独立的 SkillShelf CLI、文档与精选目录。公开源码仓库为 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。本文针对 10 包 `0.2.1` 候选（8 个完整技能套件、目录和 CLI）。当前候选的三平台 Node 22/24 CI 随发布推送运行；发布进度和验证范围以 [PUBLIC-VERIFICATION.md](PUBLIC-VERIFICATION.md) 为准。
 
 ## 开发环境
 
@@ -42,7 +42,7 @@ npm test
 python3 tests/terminal-smoke.py --cli packages/cli/dist/index.js --catalog "$SKILLSHELF_TEST_CATALOG" --tmp "$SKILLSHELF_TEST_TMP"
 
 npm pack --workspace packages/cli --ignore-scripts --pack-destination "$work/packages"
-cli_tarball="$work/packages/llx17669475-skillshelf-0.2.0.tgz"
+cli_tarball="$work/packages/llx17669475-skillshelf-0.2.1.tgz"
 node scripts/audit-cli-package.mjs "$cli_tarball"
 node scripts/prepare-release.mjs --output "$work/packages" --cli-tarball "$cli_tarball"
 ```

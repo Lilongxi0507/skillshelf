@@ -1,6 +1,6 @@
 # Stable release procedure
 
-Target: `0.2.0`, channel `latest`, public namespace `@llx17669475`. Derive the 10 package identities from the generated publication plan: 8 complete skill packs (83 members), catalog, CLI.
+Target: `0.2.1`, channel `latest`, public namespace `@llx17669475`. Derive the 10 package identities from the generated publication plan: 8 complete skill packs (83 members), catalog, CLI.
 
 1. Install locked dependencies with lifecycle scripts disabled; build and validate.
 2. Pack skills into a new external directory with `--write-bootstrap`; copy the catalog and validate it.

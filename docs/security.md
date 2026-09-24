@@ -1,6 +1,6 @@
 # SkillShelf 安全与信任边界
 
-本说明适用于当前 10 包 `0.2.0` 本地候选。公开目标为 npm `@llx17669475` 与 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)；本候选仍未发布。本文不是 npm 已上架、独立安全审计或跨平台验收的证明。
+本说明适用于当前 10 包 `0.2.1` 本地候选。公开目标为 npm `@llx17669475` 与 [Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)；本候选仍未发布。本文不是 npm 已上架、独立安全审计或跨平台验收的证明。
 
 ## 三条独立的信任边界
 

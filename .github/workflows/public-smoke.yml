@@ -6,7 +6,7 @@ on:
       expected_version:
         description: Exact version expected from the latest tag
         required: true
-        default: 0.2.0
+        default: 0.2.1
 
 permissions:
   contents: read
