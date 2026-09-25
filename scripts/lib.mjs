@@ -161,6 +161,26 @@ export function publicationPlan(packages, api, skillCount, complete = false) {
   if (packages.filter(row => row.name.startsWith(`${api.ALLOWED_SCOPE}/skillshelf-pack-`)).length !== skillCount || !packages.some(row => row.name === `${api.ALLOWED_SCOPE}/skillshelf-catalog`) || packages.some(row => row.name === `${api.ALLOWED_SCOPE}/skillshelf`) !== complete) throw new Error('Plan requires every reviewed skill, catalog and the actual CLI only when complete');
   return { schemaVersion: 1, published: false, complete, scope: api.ALLOWED_SCOPE, version: api.CLI_VERSION, tag: api.RELEASE_CHANNEL, access: 'public', repository: api.REPOSITORY_URL, packages };
 }
+/** v0.3 two-package publication plan: exactly the metadata-only catalog and the CLI.
+ * Skill packs are never published under this model; legacy 0.2.x plans keep
+ * publicationPlan(skillCount). Catalog revisions advance independently of the
+ * CLI SemVer, so the plan pins both.
+ */
+export function publicationPlanV3(packages, api, { catalogRevision } = {}) {
+  if (!Number.isSafeInteger(catalogRevision) || catalogRevision < 1) throw new Error('v0.3 publication plan requires a positive integer catalog revision');
+  if (!Array.isArray(packages) || packages.length !== 2) throw new Error('v0.3 publication plan requires exactly the catalog and CLI packages');
+  const catalogName = `${api.ALLOWED_SCOPE}/skillshelf-catalog`, cliName = `${api.ALLOWED_SCOPE}/skillshelf`;
+  const [catalog, cli] = packages;
+  if (catalog.name !== catalogName || cli.name !== cliName) throw new Error('v0.3 publication plan must list the catalog first and then the CLI');
+  if (new Set(packages.map(row => row.name)).size !== 2 || new Set(packages.map(row => row.file.toLowerCase())).size !== 2) throw new Error('v0.3 publication plan requires unique reviewed packages');
+  for (const row of packages) {
+    if (row.name.startsWith(`${api.ALLOWED_SCOPE}/skillshelf-pack-`) || row.name.startsWith(`${api.ALLOWED_SCOPE}/skillshelf-skill-`)) throw new Error('v0.3 publication plan must not include skill packages');
+    const expected = publicationEntry(row.name, row.version, row.file, Buffer.alloc(0), api);
+    api.validateIntegrity(row.integrity);
+    if (api.canonicalJson({ ...expected, integrity: row.integrity }) !== api.canonicalJson(row)) throw new Error('Unreviewed publication plan entry');
+  }
+  return { schemaVersion: 3, published: false, complete: true, scope: api.ALLOWED_SCOPE, version: api.CLI_VERSION, catalogRevision, tag: api.RELEASE_CHANNEL, access: 'public', repository: api.REPOSITORY_URL, packages };
+}
 export function assertReleaseConfig(config, api) {
   if (config.scope !== api.ALLOWED_SCOPE || config.version !== api.CLI_VERSION || !Array.isArray(config.skills) || !config.skills.length || config.skills.length > 1000) throw new Error('Reviewed scope/version and skills required');
   if (new Set(config.skills.map(row => row.name)).size !== config.skills.length || new Set(config.skills.map(row => row.snapshot || row.name)).size !== config.skills.length) throw new Error('Duplicate configured skill or snapshot');
