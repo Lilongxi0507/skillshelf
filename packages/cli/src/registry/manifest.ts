@@ -17,7 +17,8 @@ import type {
 } from '../types.js';
 import { ALLOWED_SCOPE, EXACT_VERSION, LIMITS, canonicalJson, safeRelativePath, validateIntegrity, validateRuntime } from '../validation.js';
 
-const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const NAME_SOURCE = '[a-z0-9]+(?:-[a-z0-9]+)*';
+const NAME = new RegExp(`^${NAME_SOURCE}$`, 'u');
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SHA1_COMMIT = /^[a-f0-9]{40}$/u;
@@ -103,7 +104,22 @@ function assertUniquePaths(paths: readonly string[], label: string): void {
   }
 }
 
+function assertPathSpellings(paths: readonly string[]): void {
+  const spellings = new Map<string, string>();
+  for (const value of paths) {
+    const parts = value.split('/');
+    for (let depth = 1; depth <= parts.length; depth++) {
+      const prefix = parts.slice(0, depth).join('/');
+      const folded = uniquePathKey(prefix);
+      const previous = spellings.get(folded);
+      if (previous !== undefined && previous !== prefix) fail('Case collision in directory spelling');
+      spellings.set(folded, prefix);
+    }
+  }
+}
+
 function assertNoFileDirectoryCollision(paths: readonly string[]): void {
+  assertPathSpellings(paths);
   const files = new Set(paths.map(uniquePathKey));
   for (const value of paths) {
     const parts = value.split('/');
@@ -111,6 +127,71 @@ function assertNoFileDirectoryCollision(paths: readonly string[]): void {
       if (files.has(uniquePathKey(parts.slice(0, depth).join('/')))) fail('File/directory collision');
     }
   }
+}
+
+function assertFilesDoNotCollideWithDirectories(files: readonly string[], directories: readonly string[]): void {
+  const fileKeys = files.map(uniquePathKey);
+  for (const file of fileKeys) {
+    for (const directory of directories.map(uniquePathKey)) {
+      if (file === directory || directory.startsWith(`${file}/`)) fail('File/directory collision');
+    }
+  }
+}
+
+function assertCrossFileDirectoryCollision(left: readonly string[], right: readonly string[]): void {
+  for (const leftPath of left) {
+    for (const rightPath of right) {
+      if (leftPath === rightPath) continue;
+      if (pathWithin(leftPath, rightPath) || pathWithin(rightPath, leftPath)) fail('File/directory collision');
+    }
+  }
+}
+
+function pathWithin(path: string, root: string): boolean {
+  return path === root || path.startsWith(`${root}/`);
+}
+
+function rootsOverlap(left: string, right: string): boolean {
+  const foldedLeft = uniquePathKey(left);
+  const foldedRight = uniquePathKey(right);
+  return foldedLeft === foldedRight || foldedLeft.startsWith(`${foldedRight}/`) || foldedRight.startsWith(`${foldedLeft}/`);
+}
+
+function destinationOwnedByExactlyOneMapping(path: string, mappings: readonly SourceMapping[]): boolean {
+  const owners = mappings.filter((mapping) => pathWithin(path, mapping.destinationPath));
+  return owners.length === 1;
+}
+
+function validateGithubInventoryOwnership(files: readonly SourceFileEntry[], acquisition: GithubAcquisition): void {
+  const mappings = acquisition.mappings;
+  const overlays = acquisition.overlays ?? [];
+  const mappingDestinations = mappings.map((mapping) => mapping.destinationPath);
+  const overlayDestinations = overlays.map((overlay) => overlay.destinationPath);
+
+  assertPathSpellings([
+    ...mappings.flatMap((mapping) => [mapping.sourcePath, mapping.destinationPath]),
+    ...overlayDestinations,
+    ...files.map((file) => file.path),
+  ]);
+  assertFilesDoNotCollideWithDirectories(files.map((file) => file.path), mappingDestinations);
+  assertFilesDoNotCollideWithDirectories(overlayDestinations, mappingDestinations);
+  assertNoFileDirectoryCollision(overlayDestinations);
+  assertCrossFileDirectoryCollision(
+    overlayDestinations,
+    files.map((file) => file.path).filter((path) => !overlayDestinations.includes(path)),
+  );
+
+  const overlayPaths = new Set(overlayDestinations);
+  for (const file of files) {
+    if (overlayPaths.has(file.path)) continue;
+    if (!destinationOwnedByExactlyOneMapping(file.path, mappings)) fail('Selected file has no unique mapping ownership');
+  }
+}
+
+function compareCanonical(left: unknown, right: unknown): number {
+  const a = canonicalJson(left);
+  const b = canonicalJson(right);
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function stringArray(value: unknown, label: string, maximum = 128): string[] {
@@ -151,27 +232,33 @@ function validateSourceFiles(value: unknown): SourceFileEntry[] {
   return files.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
 }
 
-function validateMapping(value: unknown): SourceMapping {
+function validateMapping(value: unknown, expectedRepository: string, expectedCommit: string): SourceMapping {
   const item = row(value, ['sourcePath', 'destinationPath', 'repository', 'commit'], 'source mapping');
   const result: SourceMapping = {
     sourcePath: pathValue(item.sourcePath, 'mapping source path'),
     destinationPath: pathValue(item.destinationPath, 'mapping destination path'),
   };
   if ((item.repository === undefined) !== (item.commit === undefined)) fail('Mapping repository and commit must be provided together');
-  if (item.repository !== undefined) result.repository = repository(item.repository);
-  if (item.commit !== undefined) result.commit = commit(item.commit);
+  if (item.repository !== undefined) {
+    result.repository = repository(item.repository);
+    result.commit = commit(item.commit);
+    if (result.repository !== expectedRepository || result.commit !== expectedCommit) fail('Mapping source identity does not match acquisition');
+  }
   return result;
 }
 
-function validateOverlay(value: unknown): SourceOverlay {
+function validateOverlay(value: unknown, expectedRepository: string, expectedCommit: string): SourceOverlay {
   const item = row(value, ['origin', 'repository', 'commit', 'sourcePath', 'destinationPath', 'sha256', 'size', 'mode'], 'source overlay');
   if (!['upstream', 'authored', 'license'].includes(String(item.origin))) fail('Invalid overlay origin');
   const mode = item.mode;
   if (mode !== 100644 && mode !== 100755) fail('Invalid overlay mode');
+  const overlayRepository = repository(item.repository);
+  const overlayCommit = commit(item.commit);
+  if (overlayRepository !== expectedRepository || overlayCommit !== expectedCommit) fail('Overlay source identity does not match acquisition');
   return {
     origin: item.origin as SourceOverlay['origin'],
-    repository: repository(item.repository),
-    commit: commit(item.commit),
+    repository: overlayRepository,
+    commit: overlayCommit,
     sourcePath: pathValue(item.sourcePath, 'overlay source path'),
     destinationPath: pathValue(item.destinationPath, 'overlay destination path'),
     sha256: digest(item.sha256),
@@ -180,27 +267,68 @@ function validateOverlay(value: unknown): SourceOverlay {
   };
 }
 
+function normalizedMappingPayload(mappings: readonly SourceMapping[], overlays: readonly SourceOverlay[] = []): { mappings: SourceMapping[]; overlays: SourceOverlay[] } {
+  const normalizedMappings = mappings.map((mapping) => ({
+    sourcePath: mapping.sourcePath,
+    destinationPath: mapping.destinationPath,
+    ...(mapping.repository === undefined ? {} : { repository: mapping.repository }),
+    ...(mapping.commit === undefined ? {} : { commit: mapping.commit }),
+  })).sort(compareCanonical);
+  const normalizedOverlays = overlays.map((overlay) => ({
+    origin: overlay.origin,
+    repository: overlay.repository,
+    commit: overlay.commit,
+    sourcePath: overlay.sourcePath,
+    destinationPath: overlay.destinationPath,
+    sha256: overlay.sha256,
+    size: overlay.size,
+    mode: overlay.mode,
+  })).sort(compareCanonical);
+  return { mappings: normalizedMappings, overlays: normalizedOverlays };
+}
+
+/** Digest of the normalized source mappings and explicit overlays only. */
+export function digestSourceMappings(mappings: readonly SourceMapping[], overlays: readonly SourceOverlay[] = []): string {
+  return createHash('sha256').update(canonicalJson(normalizedMappingPayload(mappings, overlays))).digest('hex');
+}
+
 function validateGithubAcquisition(value: unknown): GithubAcquisition {
   const item = row(value, ['kind', 'repository', 'commit', 'mappings', 'overlays', 'manifestDigest', 'receiptPolicy'], 'github acquisition');
   if (item.kind !== 'github') fail('Invalid acquisition kind');
+  const acquisitionRepository = repository(item.repository);
+  const acquisitionCommit = commit(item.commit);
   if (!Array.isArray(item.mappings) || item.mappings.length === 0 || item.mappings.length > LIMITS.files) fail('GitHub acquisition requires mappings');
-  const mappings = item.mappings.map(validateMapping);
+  const mappings = item.mappings.map((mapping) => validateMapping(mapping, acquisitionRepository, acquisitionCommit));
   assertUniquePaths(mappings.map((mapping) => mapping.destinationPath), 'mapping destination');
+  assertUniquePaths(mappings.map((mapping) => mapping.sourcePath), 'mapping source');
+  assertPathSpellings(mappings.map((mapping) => mapping.destinationPath));
+  assertPathSpellings(mappings.map((mapping) => mapping.sourcePath));
+  for (let index = 0; index < mappings.length; index += 1) {
+    for (let next = index + 1; next < mappings.length; next += 1) {
+      if (rootsOverlap(mappings[index]!.destinationPath, mappings[next]!.destinationPath)) fail('Overlapping mapping destinations');
+      if (rootsOverlap(mappings[index]!.sourcePath, mappings[next]!.sourcePath)) fail('Overlapping mapping sources');
+    }
+  }
+  assertNoFileDirectoryCollision(mappings.map((mapping) => mapping.sourcePath));
+  assertPathSpellings(mappings.map((mapping) => mapping.destinationPath));
   const result: GithubAcquisition = {
     kind: 'github',
-    repository: repository(item.repository),
-    commit: commit(item.commit),
+    repository: acquisitionRepository,
+    commit: acquisitionCommit,
     mappings,
   };
   if (item.overlays !== undefined) {
     if (!Array.isArray(item.overlays) || item.overlays.length > LIMITS.files) fail('Invalid source overlays');
-    const overlays = item.overlays.map(validateOverlay);
+    const overlays = item.overlays.map((overlay) => validateOverlay(overlay, acquisitionRepository, acquisitionCommit));
     assertUniquePaths(overlays.map((overlay) => overlay.destinationPath), 'overlay destination');
     const mappingDestinations = new Set(mappings.map((mapping) => uniquePathKey(mapping.destinationPath)));
     if (overlays.some((overlay) => mappingDestinations.has(uniquePathKey(overlay.destinationPath)))) fail('Overlay collides with mapping destination');
     result.overlays = overlays;
   }
-  if (item.manifestDigest !== undefined) result.manifestDigest = digest(item.manifestDigest, 'manifest digest');
+  if (item.manifestDigest !== undefined) {
+    result.manifestDigest = digest(item.manifestDigest, 'manifest digest');
+    if (result.manifestDigest !== digestSourceMappings(mappings, result.overlays ?? [])) fail('Mapping digest mismatch');
+  }
   if (item.receiptPolicy !== undefined) {
     if (item.receiptPolicy !== 'required' && item.receiptPolicy !== 'optional') fail('Invalid archive receipt policy');
     result.receiptPolicy = item.receiptPolicy;
@@ -213,7 +341,7 @@ function validateNpmAcquisition(value: unknown): NpmAcquisition {
   if (item.kind !== 'npm') fail('Invalid acquisition kind');
   const packageName = text(item.packageName, 'package name', 180);
   const escapedScope = ALLOWED_SCOPE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (!new RegExp(`^${escapedScope}/skillshelf-(?:skill|pack)-${NAME.source}$`, 'u').test(packageName)) fail('npm package must use the fixed SkillShelf namespace');
+  if (!new RegExp(`^${escapedScope}/skillshelf-(?:skill|pack)-${NAME_SOURCE}$`, 'u').test(packageName)) fail('npm package must use the fixed SkillShelf namespace');
   const version = text(item.version, 'npm version', 100);
   if (!EXACT_VERSION.test(version)) fail('npm acquisition requires an exact version');
   return { kind: 'npm', packageName, version, integrity: validateIntegrity(item.integrity) };
@@ -318,13 +446,29 @@ function validateAuthorization(value: unknown, manifest: SourceManifest): Execut
   const acquisition = manifest.acquisition;
   if (result.repository !== acquisition.repository || result.commit !== acquisition.commit) fail('Authorization source identity does not match acquisition');
   if (result.treeDigest !== manifest.treeDigest || result.releaseDigest !== manifest.releaseDigest) fail('Authorization digest does not match manifest');
-  if (manifest.runtime.entrypoint === undefined || result.entrypoint !== manifest.runtime.entrypoint) fail('Authorization entrypoint does not match manifest');
-  if (result.runtime !== undefined && canonicalJson(result.runtime) !== canonicalJson(manifest.runtime)) fail('Authorization runtime does not match manifest');
-  if (result.minimumVersion !== undefined && result.minimumVersion !== manifest.runtime.minimumVersion) fail('Authorization minimum version does not match manifest');
-  if (result.dependencies !== undefined && canonicalJson(result.dependencies) !== canonicalJson(manifest.runtime.dependencies ?? [])) fail('Authorization dependencies do not match manifest');
-  if (result.providers !== undefined && canonicalJson(result.providers) !== canonicalJson(manifest.runtime.providers ?? [])) fail('Authorization providers do not match manifest');
-  if (result.requiresNetwork !== undefined && result.requiresNetwork !== manifest.runtime.requiresNetwork) fail('Authorization network declaration does not match manifest');
-  if (result.skillId !== undefined && result.skillId !== manifest.id && !manifest.members?.some((member) => member.id === result.skillId)) fail('Authorization skill identity does not match manifest');
+  if (result.mappingDigest !== undefined && (acquisition.manifestDigest === undefined || result.mappingDigest !== acquisition.manifestDigest)) fail('Authorization mapping digest does not match acquisition');
+
+  const member = manifest.members === undefined
+    ? undefined
+    : result.memberId === undefined
+      ? fail('Authorization member id is required for a member manifest')
+      : manifest.members.find((candidate) => candidate.id === result.memberId);
+  if (manifest.members !== undefined && member === undefined) fail('Authorization member identity does not match manifest');
+  if (manifest.members === undefined && result.memberId !== undefined) fail('Authorization member identity does not match manifest');
+  const identity = member?.id ?? manifest.id;
+  if (result.tool !== undefined && result.tool !== identity) fail('Authorization tool identity does not match manifest');
+  if (result.skillId !== undefined && result.skillId !== identity) fail('Authorization skill identity does not match manifest');
+
+  const runtime = member?.runtime ?? manifest.runtime;
+  const entrypoint = member?.runtime?.entrypoint === undefined
+    ? runtime.entrypoint
+    : `${member.path}/${member.runtime.entrypoint}`;
+  if (entrypoint === undefined || result.entrypoint !== entrypoint) fail('Authorization entrypoint does not match manifest');
+  if (result.runtime !== undefined && canonicalJson(result.runtime) !== canonicalJson(runtime)) fail('Authorization runtime does not match manifest');
+  if (result.minimumVersion !== undefined && result.minimumVersion !== runtime.minimumVersion) fail('Authorization minimum version does not match manifest');
+  if (result.dependencies !== undefined && canonicalJson(result.dependencies) !== canonicalJson(runtime.dependencies ?? [])) fail('Authorization dependencies do not match manifest');
+  if (result.providers !== undefined && canonicalJson(result.providers) !== canonicalJson(runtime.providers ?? [])) fail('Authorization providers do not match manifest');
+  if (result.requiresNetwork !== undefined && result.requiresNetwork !== runtime.requiresNetwork) fail('Authorization network declaration does not match manifest');
   return result;
 }
 
@@ -382,14 +526,16 @@ export function validateSourceManifest(value: unknown): SourceManifest {
     if (result.members && result.layout.some((entry) => !result.members!.some((member) => member.id === entry.memberId))) fail('Layout references unknown member');
   }
   if (item.archiveReceipt !== undefined) result.archiveReceipt = validateArchiveReceipt(item.archiveReceipt);
-  if (result.acquisition.kind === 'github' && result.acquisition.overlays) {
-    const filesByPath = new Map(result.files.map((file) => [uniquePathKey(file.path), file]));
-    for (const overlay of result.acquisition.overlays) {
-      const file = filesByPath.get(uniquePathKey(overlay.destinationPath));
-      if (!file || file.sha256 !== overlay.sha256 || file.size !== overlay.size || file.mode !== overlay.mode) fail('Overlay does not match selected file inventory');
+  if (result.acquisition.kind === 'github') {
+    validateGithubInventoryOwnership(result.files, result.acquisition);
+    if (result.acquisition.overlays) {
+      const filesByPath = new Map(result.files.map((file) => [file.path, file]));
+      for (const overlay of result.acquisition.overlays) {
+        const file = filesByPath.get(overlay.destinationPath);
+        if (!file || file.sha256 !== overlay.sha256 || file.size !== overlay.size || file.mode !== overlay.mode) fail('Overlay does not match selected file inventory');
+      }
     }
   }
-  if (result.acquisition.kind === 'github' && result.acquisition.manifestDigest !== undefined && result.acquisition.manifestDigest !== result.treeDigest && result.acquisition.manifestDigest !== result.releaseDigest) fail('Acquisition manifest digest does not match manifest identity');
   const expectedRelease = digestSourceRelease(result);
   if (result.releaseDigest !== expectedRelease) fail('Release digest mismatch');
   if (item.authorization !== undefined) result.authorization = validateAuthorization(item.authorization, result);
