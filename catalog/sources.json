@@ -29,6 +29,91 @@
       "requiredNotice": "Required Notice: Copyright Abhigyan Patwari (https://github.com/abhigyanpatwari/GitNexus)"
     }
   },
+  "v3": {
+    "sourceSchema": 3,
+    "catalogRevision": 1,
+    "firstParty": {
+      "repository": "Lilongxi0507/skillshelf",
+      "commit": "f5ce69c05d281eb1c330ea60a7c49d3560f7b677"
+    },
+    "packRevisions": {
+      "taste": 1,
+      "ui-ux-pro-max": 1,
+      "skillshelf-web-search": 1,
+      "skillshelf-media-generation": 1,
+      "archify": 1,
+      "matt-pocock": 1,
+      "superpowers": 1,
+      "gitnexus": 1
+    },
+    "firstPartySources": {
+      "skillshelf-web-search": {
+        "sourcePath": "skills/skillshelf-web-search/skill",
+        "destinationPath": "skills/skillshelf-web-search"
+      },
+      "skillshelf-media-generation": {
+        "sourcePath": "skills/skillshelf-media-generation/skill",
+        "destinationPath": "skills/skillshelf-media-generation"
+      }
+    },
+    "legalOverlays": {
+      "taste": [{ "origin": "license", "sourcePath": "LICENSE" }],
+      "uiux": [{ "origin": "license", "sourcePath": "LICENSE" }],
+      "matt": [{ "origin": "license", "sourcePath": "LICENSE" }],
+      "superpowers": [{ "origin": "license", "sourcePath": "LICENSE" }],
+      "gitnexus": [
+        { "origin": "license", "sourcePath": "LICENSE" },
+        { "origin": "authored", "repository": "first-party", "sourcePath": "skills/gitnexus-cli/skill/NOTICE" }
+      ],
+      "archify": [{ "origin": "authored", "repository": "first-party", "sourcePath": "skills/archify/skill/THIRD_PARTY_NOTICES" }]
+    },
+    "memberMappings": {
+      "gitnexus-pr-swarm-review": [
+        {
+          "sourcePath": ".claude/skills/gitnexus-pr-swarm-review",
+          "destinationPath": ".claude/skills/gitnexus-pr-swarm-review/skill",
+          "fixtureSubpath": ""
+        },
+        {
+          "sourcePath": ".claude/agents",
+          "destinationPath": ".claude/skills/gitnexus-pr-swarm-review/agents",
+          "fixtureSubpath": ".claude/agents"
+        },
+        {
+          "sourcePath": "pr-swarm-review",
+          "destinationPath": ".claude/skills/gitnexus-pr-swarm-review/pr-swarm-review",
+          "fixtureSubpath": "pr-swarm-review"
+        }
+      ]
+    },
+    "exclusions": [
+      {
+        "source": "taste",
+        "sourcePath": "skills/llms.txt",
+        "reason": "Upstream repository index file outside every reviewed member directory; retained upstream, never acquired."
+      },
+      {
+        "source": "matt",
+        "sourcePath": "skills/engineering/README.md",
+        "reason": "Upstream category documentation outside every reviewed member directory; not member content."
+      },
+      {
+        "source": "matt",
+        "sourcePath": "skills/in-progress/README.md",
+        "reason": "Upstream category documentation outside every reviewed member directory; not member content."
+      },
+      {
+        "source": "matt",
+        "sourcePath": "skills/misc/README.md",
+        "reason": "Upstream category documentation outside every reviewed member directory; not member content."
+      },
+      {
+        "source": "matt",
+        "sourcePath": "skills/productivity/README.md",
+        "reason": "Upstream category documentation outside every reviewed member directory; not member content."
+      }
+    ]
+  },
   "categories": [
     {
       "id": "design",
