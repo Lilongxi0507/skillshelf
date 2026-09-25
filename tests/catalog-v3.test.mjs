@@ -128,12 +128,19 @@ test('rejects floating refs, arbitrary URLs, unsafe mappings, duplicate files, i
       overlays: [...base.acquisition.overlays, { ...base.acquisition.overlays[0], sourcePath: 'OTHER', destinationPath: 'demo/NOTICE' }],
     },
   }));
-  assertRejected(rebuilt(base, {
+});
+
+test('accepts an overlay from another fixed source tuple and binds its identity into manifestDigest', () => {
+  const base = validManifest();
+  const manifest = rebuilt(base, {
     acquisition: {
       ...base.acquisition,
-      overlays: [{ ...base.acquisition.overlays[0], repository: 'other/tools' }],
+      overlays: [{ ...base.acquisition.overlays[0], repository: 'skillshelf/legal', commit: commit('b') }],
     },
-  }), /overlay source identity/i);
+  });
+  assert.equal(validateSourceManifest(manifest).acquisition.overlays[0].repository, 'skillshelf/legal');
+  assert.notEqual(manifest.acquisition.manifestDigest, base.acquisition.manifestDigest);
+  assert.equal(manifest.acquisition.manifestDigest, mappingDigest(manifest.acquisition.mappings, manifest.acquisition.overlays));
 });
 
 test('requires non-overlapping mapping roots and exact selected-file ownership', () => {
@@ -182,11 +189,41 @@ test('requires non-overlapping mapping roots and exact selected-file ownership',
   }), /overlay|file.directory|collision/i);
 });
 
-test('rejects case-colliding directory spellings in selected inventory', () => {
+test('keeps source and destination namespaces independent while rejecting same-tree aliases', () => {
   const base = validManifest();
+  const renamed = rebuilt(base, {
+    files: base.files.map((file) => ({ ...file, path: file.path.replace(/^demo\//u, 'skills/demo/') })),
+    acquisition: {
+      ...base.acquisition,
+      mappings: [{ sourcePath: 'Skills/demo', destinationPath: 'skills/demo' }],
+      overlays: [{ ...base.acquisition.overlays[0], destinationPath: 'skills/demo/NOTICE' }],
+    },
+    runtime: { ...base.runtime, entrypoint: 'skills/demo/run.mjs' },
+  });
+  assert.equal(validateSourceManifest(renamed).acquisition.mappings[0].sourcePath, 'Skills/demo');
+  assertRejected(rebuilt(base, {
+    acquisition: {
+      ...base.acquisition,
+      mappings: [
+        { sourcePath: 'Skills/demo', destinationPath: 'demo' },
+        { sourcePath: 'skills/other', destinationPath: 'other' },
+      ],
+    },
+  }), /case|collision|spelling/i);
   assertRejected(rebuilt(base, {
     files: [...base.files, { path: 'Demo/other', size: 1, sha256: sha256('x'), mode: 100644 }],
   }));
+});
+
+test('rejects a member runtime entrypoint that is not selected', () => {
+  const base = validManifest();
+  assertRejected(rebuilt(base, {
+    members: [{
+      id: 'demo-member', name: 'Demo member', path: 'demo',
+      runtime: { kind: 'node', entrypoint: 'missing.mjs', requiresNetwork: false },
+    }],
+    layout: [{ memberId: 'demo-member', path: 'demo' }],
+  }), /entrypoint|selected|missing/i);
 });
 
 test('requires exact npm identity and keeps local acquisition explicitly non-public', () => {

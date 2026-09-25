@@ -168,8 +168,12 @@ function validateGithubInventoryOwnership(files: readonly SourceFileEntry[], acq
   const mappingDestinations = mappings.map((mapping) => mapping.destinationPath);
   const overlayDestinations = overlays.map((overlay) => overlay.destinationPath);
 
+  // Source archive roots and installed destinations are different path trees:
+  // a reviewed mapping may intentionally rename case (for example `Skills/demo`
+  // to `skills/demo`). Alias checks stay within each tree only.
+  assertPathSpellings(mappings.map((mapping) => mapping.sourcePath));
   assertPathSpellings([
-    ...mappings.flatMap((mapping) => [mapping.sourcePath, mapping.destinationPath]),
+    ...mappingDestinations,
     ...overlayDestinations,
     ...files.map((file) => file.path),
   ]);
@@ -247,18 +251,15 @@ function validateMapping(value: unknown, expectedRepository: string, expectedCom
   return result;
 }
 
-function validateOverlay(value: unknown, expectedRepository: string, expectedCommit: string): SourceOverlay {
+function validateOverlay(value: unknown): SourceOverlay {
   const item = row(value, ['origin', 'repository', 'commit', 'sourcePath', 'destinationPath', 'sha256', 'size', 'mode'], 'source overlay');
   if (!['upstream', 'authored', 'license'].includes(String(item.origin))) fail('Invalid overlay origin');
   const mode = item.mode;
   if (mode !== 100644 && mode !== 100755) fail('Invalid overlay mode');
-  const overlayRepository = repository(item.repository);
-  const overlayCommit = commit(item.commit);
-  if (overlayRepository !== expectedRepository || overlayCommit !== expectedCommit) fail('Overlay source identity does not match acquisition');
   return {
     origin: item.origin as SourceOverlay['origin'],
-    repository: overlayRepository,
-    commit: overlayCommit,
+    repository: repository(item.repository),
+    commit: commit(item.commit),
     sourcePath: pathValue(item.sourcePath, 'overlay source path'),
     destinationPath: pathValue(item.destinationPath, 'overlay destination path'),
     sha256: digest(item.sha256),
@@ -319,7 +320,7 @@ function validateGithubAcquisition(value: unknown): GithubAcquisition {
   };
   if (item.overlays !== undefined) {
     if (!Array.isArray(item.overlays) || item.overlays.length > LIMITS.files) fail('Invalid source overlays');
-    const overlays = item.overlays.map((overlay) => validateOverlay(overlay, acquisitionRepository, acquisitionCommit));
+    const overlays = item.overlays.map(validateOverlay);
     assertUniquePaths(overlays.map((overlay) => overlay.destinationPath), 'overlay destination');
     const mappingDestinations = new Set(mappings.map((mapping) => uniquePathKey(mapping.destinationPath)));
     if (overlays.some((overlay) => mappingDestinations.has(uniquePathKey(overlay.destinationPath)))) fail('Overlay collides with mapping destination');
@@ -414,6 +415,14 @@ function validateArchiveReceipt(value: unknown): ArchiveReceipt {
     compressedSha512: digest(item.compressedSha512, 'SHA-512'),
     compressedBytes: integer(item.compressedBytes, 'compressed archive bytes', MAX_RECEIPT_BYTES, 1),
   };
+}
+
+function validateMemberEntrypoints(manifest: SourceManifest): void {
+  const files = new Set(manifest.files.map((file) => file.path));
+  for (const member of manifest.members ?? []) {
+    const entrypoint = member.runtime?.entrypoint;
+    if (entrypoint !== undefined && !files.has(`${member.path}/${entrypoint}`)) fail('Missing selected member entrypoint');
+  }
 }
 
 function validateAuthorization(value: unknown, manifest: SourceManifest): ExecutionAuthorization {
@@ -521,6 +530,7 @@ export function validateSourceManifest(value: unknown): SourceManifest {
   if (result.id !== result.name) fail('Source manifest id/name mismatch');
   if (result.treeDigest !== digestSourceTree(files)) fail('Tree digest mismatch');
   if (item.members !== undefined) result.members = validateMembers(item.members);
+  validateMemberEntrypoints(result);
   if (item.layout !== undefined) {
     result.layout = validateLayout(item.layout);
     if (result.members && result.layout.some((entry) => !result.members!.some((member) => member.id === entry.memberId))) fail('Layout references unknown member');
