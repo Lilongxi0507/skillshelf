@@ -8,7 +8,7 @@ import { assertPublicationMetadata, integrityFor, modules, readRegularFile } fro
 const CLI_MODULES = Object.freeze([
   'agents/agents', 'agents/storage-boundary', 'catalog/catalog',
   'commands/maintenance', 'commands/portable', 'errors', 'index', 'manager',
-  'registry/files', 'registry/http', 'registry/registry', 'registry/tar', 'release',
+  'registry/acquisition', 'registry/files', 'registry/github', 'registry/http', 'registry/manifest', 'registry/paths', 'registry/registry', 'registry/tar', 'release',
   'runtime/privacy', 'runtime/providers', 'runtime/runtime',
   'store/fs', 'store/local', 'store/projections', 'store/state',
   'transactions/core-guard', 'transactions/locks', 'transactions/operations', 'transactions/transaction',
@@ -42,7 +42,9 @@ export async function auditCliArchive(bytes, { api, expectedCatalog } = {}) {
   const bootstrap = api.validatePublicCatalog(api.parseJsonFile(get('package/dist/catalog/bootstrap.json')));
   assert.ok(bootstrap.skills.length > 0); assert.equal(bootstrap.catalogVersion, metadata.version);
   assert.equal(bootstrap.scope, api.ALLOWED_SCOPE);
-  assert.ok(bootstrap.skills.every(entry => entry.version === metadata.version));
+  // v0.3: legacy npm entries keep their reviewed 0.2.x identities while the
+  // catalog itself is at the CLI version; each entry must still be exact.
+  assert.ok(bootstrap.skills.every(entry => api.EXACT_VERSION.test(entry.version)));
   if (expectedCatalog) assert.equal(api.canonicalJson(bootstrap), api.canonicalJson(expectedCatalog), 'CLI bootstrap is stale; packSkills -> copyCatalog -> npmPackCLI -> prepare');
   const bin = get('package/dist/index.js');
   assert.ok(bin.data.toString('utf8').startsWith('#!/usr/bin/env node'));
