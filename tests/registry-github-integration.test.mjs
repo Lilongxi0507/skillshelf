@@ -103,7 +103,10 @@ test('a trusted GitHub entry installs the verified selected tree into the normal
   assert.deepEqual(stored, legacyManifestFor(source));
   assert.equal(await readFile(path.join(object, 'skill', 'SKILL.md'), 'utf8'), 'complete skill\n');
   const runStat = await lstat(path.join(object, 'skill', 'run.sh'));
-  assert.ok(runStat.mode & 0o111, 'executable mode must be materialized');
+  // NTFS does not carry the POSIX executable bit; on Windows the materialized
+  // mode is the manifest declaration (the product's own verifyTree convention).
+  assert.ok(process.platform === 'win32' || (runStat.mode & 0o111) !== 0, 'executable mode must be materialized');
+  assert.ok(stored.files.some(file => file.path === 'run.sh' && file.executable), 'the store manifest declares the executable bit');
   const receipt = JSON.parse(await readFile(path.join(object, 'source-receipt.json'), 'utf8'));
   assert.equal(receipt.repository, repository);
   assert.equal(receipt.commit, commit);
