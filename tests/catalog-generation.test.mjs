@@ -157,3 +157,64 @@ test('check-sources is read-only and reports unknown status without candidate ev
   }
   assert.equal(base.wrote, false, 'check-sources must never write catalog state');
 });
+
+// --- Slice 3d: validate-catalog v3 mode and prepare-release v3 composition ---
+const { validateCatalogData } = await import('../scripts/validate-catalog.mjs');
+const { buildV3ReleaseArtifacts } = await import('../scripts/prepare-release.mjs');
+const { integrityFor } = scripts;
+
+async function builtCatalog() {
+  const expanded = expandSourceConfig(config);
+  const built = await buildSourceManifests(expanded, { root });
+  const prepared = await preparePublicCatalog(expanded, built, { catalogRevision: expanded.catalogRevision });
+  return { expanded, prepared };
+}
+
+test('validate-catalog v3 mode rebuilds from the reviewed config without tarballs', async () => {
+  assert.equal(typeof validateCatalogData, 'function', 'validate-catalog must expose a testable data validator');
+  const { prepared } = await builtCatalog();
+  const result = await validateCatalogData(config, prepared.catalog);
+  assert.equal(result.mode, 'v3');
+  assert.equal(result.packs, 8);
+  assert.equal(result.members, 83);
+  assert.equal(result.tarballs, 0, 'the v3 validation path must not require local skill tarballs');
+  const tampered = structuredClone(prepared.catalog);
+  tampered.members[0].releaseDigest = 'f'.repeat(64);
+  await assert.rejects(validateCatalogData(config, tampered), /drift|match|catalog/u);
+  const tamperedRevision = structuredClone(prepared.catalog);
+  tamperedRevision.catalogRevision = 2;
+  await assert.rejects(validateCatalogData(config, tamperedRevision), /revision|drift|catalog/u);
+});
+
+test('prepare-release v3 mode composes exactly the two-package plan from the verified catalog', async () => {
+  assert.equal(typeof buildV3ReleaseArtifacts, 'function', 'prepare-release must expose the v3 composer');
+  const { prepared } = await builtCatalog();
+  const cliBytes = Buffer.from('cli fixture archive');
+  const license = await readRegularFileFixture();
+  const { plan, catalogBytes, review } = await buildV3ReleaseArtifacts(config, {
+    catalogData: prepared.catalog,
+    cliBytes,
+    catalogLicense: license,
+  });
+  assert.equal(plan.schemaVersion, 3);
+  assert.equal(plan.catalogRevision, prepared.catalog.catalogRevision);
+  assert.deepEqual(plan.packages.map((row) => row.name), [`${api.ALLOWED_SCOPE}/skillshelf-catalog`, `${api.ALLOWED_SCOPE}/skillshelf`]);
+  assert.equal(plan.packages[0].integrity, integrityFor(catalogBytes));
+  assert.equal(plan.packages[1].integrity, integrityFor(cliBytes));
+  assert.ok(review.includes('NOT PUBLISHED'));
+  const files = api.readTarball(catalogBytes);
+  assert.deepEqual(files.map((file) => file.path).sort(), ['package/LICENSE', 'package/NOTICE', 'package/catalog.json', 'package/package.json']);
+  const metadata = api.parseJsonFile(files.find((file) => file.path === 'package/package.json'));
+  assert.equal(metadata.name, `${api.ALLOWED_SCOPE}/skillshelf-catalog`);
+  assert.equal(metadata.version, api.CLI_VERSION);
+  assert.equal(api.canonicalJson(api.parseJsonFile(files.find((file) => file.path === 'package/catalog.json'))), api.canonicalJson(prepared.catalog));
+  const tamperedCatalog = structuredClone(prepared.catalog);
+  tamperedCatalog.packs[0].packRevision = 99;
+  await assert.rejects(buildV3ReleaseArtifacts(config, { catalogData: tamperedCatalog, cliBytes, catalogLicense: license }), /drift|match|catalog/u);
+});
+
+async function readRegularFileFixture() {
+  const { readRegularFile } = scripts;
+  const path = await import('node:path');
+  return readRegularFile(path.join(root, 'skills', 'skillshelf-web-search', 'skill', 'LICENSE'));
+}
