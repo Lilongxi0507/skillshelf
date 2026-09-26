@@ -58,7 +58,9 @@ async function scratch(t) {
   const base = await realpath(process.env.SKILLSHELF_TEST_TMP || process.env.TMPDIR || os.tmpdir());
   const directory = await mkdtemp(path.join(base, 'run-skillshelf-github-store-'));
   t.after(async () => { try { await chmodTree(directory, false); } catch { /* best effort */ } await rm(directory, { recursive: true, force: true }); });
-  return directory;
+  // The home itself must NOT pre-exist: on Windows the product creates it
+  // with private ACLs; a pre-made directory inherits broad runner ACLs.
+  return path.join(directory, 'home');
 }
 function mockFetch(t, bytes = archiveBytes()) {
   const original = globalThis.fetch;

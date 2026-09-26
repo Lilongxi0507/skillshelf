@@ -92,19 +92,20 @@ async function writeCatalog(directory, catalog) {
 }
 
 test('source-aware checks stay quiet on catalog-only revisions and report content changes', async t => {
-  const home = await scratch(t);
+  const root = await scratch(t);
+  const home = path.join(root, 'home');
   const calls = mockCodeload(t);
-  const first = await writeCatalog(home, v3Catalog(demoManifest(1)));
+  const first = await writeCatalog(root, v3Catalog(demoManifest(1)));
   const ctxA = { home, offline: false, catalogPath: first };
   await installSkills(ctxA, ['demo'], { agents: [] });
   assert.equal(calls.length, 1);
   // (a) catalog revision only: no content update.
-  const revisionOnly = await writeCatalog(home, v3Catalog(demoManifest(1), 2));
+  const revisionOnly = await writeCatalog(root, v3Catalog(demoManifest(1), 2));
   const quiet = await checkUpdates({ home, offline: true, catalogPath: revisionOnly });
   assert.equal(quiet.updates.length, 0, 'catalog-revision-only changes must not report a content update');
   // (b) changed selected bytes: update reported with github identity and file diffs.
   const changed = demoManifest(2, Buffer.from('changed skill body\n'));
-  const contentChanged = await writeCatalog(home, v3Catalog(changed));
+  const contentChanged = await writeCatalog(root, v3Catalog(changed));
   const report = await checkUpdates({ home, offline: true, catalogPath: contentChanged });
   assert.equal(report.updates.length, 1);
   const row = report.updates[0];
@@ -118,7 +119,7 @@ test('source-aware checks stay quiet on catalog-only revisions and report conten
   assert.equal(row.toPackRevision, 2);
   // (c) pack revision bump with identical bytes still changes release identity.
   const sameBytes = demoManifest(2);
-  const revBumped = await writeCatalog(home, v3Catalog(sameBytes));
+  const revBumped = await writeCatalog(root, v3Catalog(sameBytes));
   const bump = await checkUpdates({ home, offline: true, catalogPath: revBumped });
   assert.equal(bump.updates.length, 1);
   assert.deepEqual(bump.updates[0].filesDiff.changed, []);
@@ -126,13 +127,14 @@ test('source-aware checks stay quiet on catalog-only revisions and report conten
 });
 
 test('history lists releases and rollback --revision restores offline with pin preserved', async t => {
-  const home = await scratch(t);
+  const root = await scratch(t);
+  const home = path.join(root, 'home');
   mockCodeload(t);
-  const first = await writeCatalog(home, v3Catalog(demoManifest(1)));
+  const first = await writeCatalog(root, v3Catalog(demoManifest(1)));
   await installSkills({ home, offline: false, catalogPath: first }, ['demo'], { agents: [] });
   const stateA = await loadState({ home, offline: true, catalogPath: first });
   const originalKey = stateA.selections.demo.releaseKey;
-  const second = await writeCatalog(home, v3Catalog(demoManifest(2)));
+  const second = await writeCatalog(root, v3Catalog(demoManifest(2)));
   await updateSkills({ home, offline: true, catalogPath: second }, ['demo'], {});
   const history = await skillHistory({ home, offline: true, catalogPath: second }, 'demo');
   assert.equal(history.current.packRevision, 2);
@@ -174,13 +176,14 @@ async function tarballFor(contents) {
 }
 
 test('migrate sources previews and applies npm→github, keeping legacy history', async t => {
-  const home = await scratch(t);
+  const root = await scratch(t);
+  const home = path.join(root, 'home');
   const fixture = npmFixture();
   const bytes = await tarballFor(fixture.contents);
   const integrity = 'sha512-' + createHash('sha512').update(bytes).digest('base64');
   const npmEntry = { id: 'demo', name: 'demo', title: 'Demo', description: 'Demo', useWhen: 'Demo', examples: [], category: 'engineering', tags: [], collection: 'fixtures', license: 'MIT', source: {}, status: 'stable', runtime: npmRuntime, packageName: '@llx17669475/skillshelf-skill-demo', version: '0.2.1', integrity, contentDigest: fixture.manifest.contentDigest, fileCount: fixture.files.length, unpackedSize: fixture.files.reduce((s, f) => s + f.size, 0) };
   const legacyCatalog = { schemaVersion: 1, catalogVersion: CLI_VERSION, minCliVersion: CLI_VERSION, scope: '@llx17669475', categories: [{ id: 'engineering', title: 'Engineering' }], collections: [{ id: 'fixtures', title: 'Fixtures', description: 'x', skills: ['demo'] }], skills: [npmEntry] };
-  const legacyFile = await writeCatalog(home, legacyCatalog);
+  const legacyFile = await writeCatalog(root, legacyCatalog);
   const original = globalThis.fetch;
   const npmCalls = [];
   globalThis.fetch = async (address) => {
@@ -198,7 +201,7 @@ test('migrate sources previews and applies npm→github, keeping legacy history'
   assert.equal(npmState.releases[npmKey].origin, 'npm');
   // Now the catalog is the v3 fixed-source catalog; migration previews.
   const codeload = mockCodeloadFor(t);
-  const v3File = await writeCatalog(home, v3Catalog(demoManifest(1)));
+  const v3File = await writeCatalog(root, v3Catalog(demoManifest(1)));
   const ctxV3 = { home, offline: false, catalogPath: v3File };
   const preview = await migrateSources(ctxV3, { dryRun: true });
   assert.equal(preview.migrations.length, 1);

@@ -109,9 +109,10 @@ function v3Catalog(manifest) {
 }
 
 test('an authorized first-party GitHub release verifies for execution; every self-claim fails closed', async t => {
-  const home = await scratch(t);
+  const root = await scratch(t);
+  const home = path.join(root, 'home');
   mockCodeload(t);
-  const catalogFile = path.join(home, 'catalog.json');
+  const catalogFile = path.join(root, 'catalog.json');
   const manifest = withAuthorization(firstPartyManifest());
   await writeFile(catalogFile, JSON.stringify(v3Catalog(manifest)));
   const ctx = { home, offline: false, catalogFile: undefined, catalogPath: catalogFile };

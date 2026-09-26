@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { json, licenseFor, modules, outputDirectory, readRegularFile, runtimeFor, skillRootFor, writeUnchangedOrNew } from './lib.mjs';
 import { argumentsFor } from './lib.mjs';
-import { packDefinitions } from './packs.mjs';
+import { packDefinitions, REVIEWED_EXECUTABLES } from './packs.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -133,8 +133,11 @@ export async function buildSourceManifests(expanded, options = {}) {
     const overlayByBasename = new Map(member.acquisition.overlays.map((overlay) => [path.posix.basename(overlay.sourcePath), overlay]));
     const files = [];
     const manifestOverlays = [];
+    // NTFS does not carry the git executable bit: on Windows, executability
+    // comes from the same reviewed allowlist the packer uses (packs.mjs).
     for (const entry of entries) {
-      const mode = entry.executable ? 100755 : 100644;
+      const reviewed = process.platform === 'win32' ? REVIEWED_EXECUTABLES.has(`${destinationRoot}/${entry.path}`) : null;
+      const mode = reviewed === null ? (entry.executable ? 100755 : 100644) : (reviewed ? 100755 : 100644);
       const overlay = overlayByBasename.get(entry.path);
       if (overlay !== undefined && boundarySuffix(overlay.destinationPath, destinationRoot) === entry.path) {
         files.push({ path: overlay.destinationPath, size: entry.size, sha256: entry.sha256, mode, origin: overlay.origin });

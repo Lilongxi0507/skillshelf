@@ -124,8 +124,9 @@ test('a schema-3 catalog bridges into the internal catalog with fixed github ide
 });
 
 test('a github member installs end to end from a schema-3 catalog', async t => {
-  const home = await scratch(t);
-  const catalogFile = await writeV3Catalog(home);
+  const root = await scratch(t);
+  const home = path.join(root, 'home');
+  const catalogFile = await writeV3Catalog(root);
   const calls = mockFetch(t);
   const ctx = { home, offline: false, catalogPath: catalogFile };
   const result = await installSkills(ctx, ['demo'], { agents: [] });
@@ -157,9 +158,8 @@ test('a frozen project lock restores a github member offline from its self-conta
   const directory = await scratch(t);
   const home = path.join(directory, 'home');
   const project = path.join(directory, 'project');
-  await mkdir(home, { recursive: true, mode: 0o700 });
   await mkdir(project, { recursive: true, mode: 0o700 });
-  const catalogFile = await writeV3Catalog(home);
+  const catalogFile = await writeV3Catalog(directory);
   const calls = mockFetch(t);
   await installSkills({ home, offline: false, catalogPath: catalogFile }, ['demo'], { agents: [] });
   assert.equal(calls.length, 1);
@@ -186,8 +186,6 @@ const { exportSkills: exportLibrary, importSkills } = core;
 test('github bundles export and import; trust only comes from a matching catalog receipt', async t => {
   const directory = await scratch(t);
   const home = path.join(directory, 'home');
-  const { mkdir } = await import('node:fs/promises');
-  await mkdir(home, { recursive: true, mode: 0o700 });
   const catalogFile = await writeV3Catalog(directory);
   mockFetch(t);
   const ctx = { home, offline: false, catalogPath: catalogFile };
@@ -202,8 +200,9 @@ test('github bundles export and import; trust only comes from a matching catalog
   assert.ok(await readdir(path.join(bundleDirectory, 'contents')).then(names => names.length === 1));
 
   // Import with the v3 catalog present: the exact receipt upgrades to github origin.
-  const homeB = await scratch(t);
-  const catalogB = await writeV3Catalog(homeB);
+  const rootB = await scratch(t);
+  const homeB = path.join(rootB, 'home');
+  const catalogB = await writeV3Catalog(rootB);
   const ctxB = { home: homeB, offline: true, catalogPath: catalogB };
   const restored = await importSkills(ctxB, bundleDirectory, {});
   assert.deepEqual(restored.imported, ['demo']);
@@ -214,7 +213,8 @@ test('github bundles export and import; trust only comes from a matching catalog
   assert.equal((await readFile(path.join(homeB, 'store', releaseB.contentDigest, 'skill', 'SKILL.md'), 'utf8')).includes('Complete body.'), true);
 
   // Import without a matching catalog: bundle self-claims never create trust — local only.
-  const homeC = await scratch(t);
+  const rootC = await scratch(t);
+  const homeC = path.join(rootC, 'home');
   const ctxC = { home: homeC, offline: true };
   const restoredC = await importSkills(ctxC, bundleDirectory, {});
   assert.deepEqual(restoredC.imported, ['demo']);

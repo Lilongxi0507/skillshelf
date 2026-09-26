@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { categories, curatedMetadata } from '../catalog/curation.mjs';
 import { skillRootFor, sourceFor, sourceAttribution, runtimeFor, licenseFor, readRegularFile } from './lib.mjs';
 
-const REVIEWED_EXECUTABLES = new Set([
+export const REVIEWED_EXECUTABLES = new Set([
   'archify/bin/archify.mjs',
   'skills/brainstorming/scripts/start-server.sh',
   'skills/brainstorming/scripts/stop-server.sh',
