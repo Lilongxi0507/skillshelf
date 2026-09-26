@@ -184,12 +184,18 @@ interface RawHeader {
 function decodeField(block: Buffer, start: number, end: number, label: string): string {
   const field = block.subarray(start, end);
   const terminator = field.indexOf(0);
-  if (terminator === -1) archiveFail(`${label} field is not NUL-terminated`);
-  for (let index = terminator; index < field.length; index += 1) {
-    if (field[index] !== 0) archiveFail(`${label} field has nonzero bytes after its NUL terminator`);
+  if (terminator === -1) {
+    // POSIX tar allows a name to fill the entire 100-byte field with no NUL
+    // terminator (exactly-100-character paths). Any other field with no NUL
+    // is malformed: mode/size/etc. always pad with NUL or space.
+    if (start !== 0 || end !== 100) archiveFail(`${label} field is not NUL-terminated`);
+  } else {
+    for (let index = terminator; index < field.length; index += 1) {
+      if (field[index] !== 0) archiveFail(`${label} field has nonzero bytes after its NUL terminator`);
+    }
   }
   try {
-    return DECODER.decode(field.subarray(0, terminator));
+    return DECODER.decode(field.subarray(0, terminator === -1 ? field.length : terminator));
   } catch {
     archiveFail(`${label} field is not valid UTF-8`);
   }
