@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       expected_version:
-        description: Exact version expected from the latest tag
+        description: Exact published version to verify from the public registry
         required: true
-        default: 0.2.1
+        default: 0.3.0
+      catalog_revision:
+        description: Exact published catalog revision
+        required: true
+        default: '1'
 
 permissions:
   contents: read
@@ -15,7 +19,7 @@ jobs:
   public-install:
     name: ${{ matrix.os }} / Node.js ${{ matrix.node }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -23,65 +27,57 @@ jobs:
         node: ['22', '24']
     env:
       EXPECTED_VERSION: ${{ inputs.expected_version }}
+      EXPECTED_CATALOG_REVISION: ${{ inputs.catalog_revision }}
     steps:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Install from public npm and exercise the native CLI
-        shell: pwsh
+      - name: Install the exact public CLI and catalog from the registry
         run: |
-          $ErrorActionPreference = 'Stop'
-          $work = (& node --input-type=module -e 'import { mkdirSync, mkdtempSync, realpathSync } from "node:fs"; import { tmpdir } from "node:os"; import { join } from "node:path"; const root = realpathSync.native(mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "skillshelf-public-"))); mkdirSync(join(root, "tests"), { mode: 0o700 }); console.log(root);').Trim()
-          $prefix = Join-Path $work 'prefix'
-          $homePath = Join-Path $work 'tests/home'
-          $agentPath = Join-Path $work 'tests/agent-skills'
-          $env:NPM_CONFIG_CACHE = Join-Path $work 'npm-cache'
-          $env:NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org/'
-          $npm = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
-          & $npm install --global '@llx17669475/skillshelf@latest' --prefix $prefix --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
-          if ($LASTEXITCODE -ne 0) { throw 'Public npm CLI installation failed' }
+          set -euo pipefail
+          root="$(mktemp -d)"
+          npm install --prefix "$root" --ignore-scripts "@llx17669475/skillshelf@$EXPECTED_VERSION" "@llx17669475/skillshelf-catalog@$EXPECTED_VERSION"
+          echo "SMOKE_ROOT=$root" >> "$GITHUB_ENV"
 
-          $bin = if ($IsWindows) { Join-Path $prefix 'skillshelf.cmd' } else { Join-Path $prefix 'bin/skillshelf' }
-          if (-not (Test-Path -LiteralPath $bin -PathType Leaf)) { throw 'Native CLI entrypoint is missing' }
-          $version = (& $bin --version | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0 -or $version -ne $env:EXPECTED_VERSION) { throw "Unexpected CLI version: $version" }
-
-          function Invoke-SkillShelf([string[]] $cliArgs) {
-            $output = & $script:bin @cliArgs
-            if ($LASTEXITCODE -ne 0) { throw "SkillShelf command failed: $($cliArgs -join ' '): $($output | Out-String)" }
-            $result = $output | ConvertFrom-Json
-            if ($result.status -ne 'ok') { throw "SkillShelf returned a non-ok status: $($cliArgs -join ' ')" }
-            return $result.data
-          }
-
-          $options = @('--home', $homePath, '--json')
-          try {
-            Invoke-SkillShelf ($options + @('catalog', 'refresh', '--yes')) | Out-Null
-          } catch {
-            if ($IsWindows) {
-              foreach ($candidate in @($work, (Join-Path $work 'tests'), $homePath, (Join-Path $homePath 'catalogs'))) {
-                if (Test-Path -LiteralPath $candidate -PathType Container) {
-                  $acl = Get-Acl -LiteralPath $candidate
-                  Write-Host "ACL diagnostic: $candidate owner=$($acl.Owner) protected=$($acl.AreAccessRulesProtected)"
-                  foreach ($rule in $acl.Access) {
-                    Write-Host "ACL rule: $($rule.IdentityReference) $($rule.AccessControlType) $($rule.FileSystemRights) inherited=$($rule.IsInherited)"
-                  }
-                }
-              }
+      - name: Verify the public metadata-only catalog carries 83 members in 8 packs
+        run: |
+          set -euo pipefail
+          catalog="$(node -e 'console.log(require.resolve("@llx17669475/skillshelf-catalog/package.json", {paths:[process.env.SMOKE_ROOT+"/node_modules"]}))' | xargs dirname)/catalog.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const catalog = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            if (catalog.schemaVersion !== 3) throw new Error("public catalog must be schema 3");
+            if (catalog.catalogRevision !== Number(process.env.EXPECTED_CATALOG_REVISION)) throw new Error("catalog revision mismatch");
+            if (catalog.members.length !== 83) throw new Error("catalog must list 83 members");
+            if (catalog.packs.length !== 8) throw new Error("catalog must list 8 packs");
+            for (const member of catalog.members) {
+              if (member.sourceManifest.acquisition.kind !== "github") throw new Error("all members must be fixed GitHub acquisitions");
             }
-            throw
-          }
-          $catalog = Invoke-SkillShelf ($options + @('list'))
-          if (@($catalog.skills).Count -ne 8) { throw 'Public catalog does not contain 8 packs' }
+          ' "$catalog"
 
-          Invoke-SkillShelf ($options + @('install', 'taste', '--yes')) | Out-Null
-          $agent = Invoke-SkillShelf ($options + @('agents', 'add', 'custom', '--path', $agentPath, '--mode', 'copy', '--yes'))
-          if (-not $agent.target.id) { throw 'Custom Agent target was not registered' }
-          Invoke-SkillShelf ($options + @('enable', 'taste', '--agent', $agent.target.id, '--yes')) | Out-Null
-          $verification = Invoke-SkillShelf ($options + @('verify'))
-          if (-not $verification.ok) { throw 'Installed skill verification failed' }
-          if (-not (Test-Path -LiteralPath (Join-Path $agentPath 'design-taste-frontend/SKILL.md') -PathType Leaf)) { throw 'Managed Agent copy is missing SKILL.md' }
+      - name: Acquire every pack from its pinned GitHub source and verify
+        run: |
+          set -euo pipefail
+          home="$SMOKE_ROOT/home"
+          mkdir -p "$home"
+          cli="$SMOKE_ROOT/node_modules/.bin/skillshelf"
+          for pack in taste ui-ux-pro-max skillshelf-web-search skillshelf-media-generation archify matt-pocock superpowers gitnexus; do
+            "$cli" --home "$home" --json install --collection "$pack" --yes
+          done
+          "$cli" --home "$home" --json verify
+          "$cli" --home "$home" --json status
 
-          Write-Host "Public npm $version passed on $([Environment]::OSVersion.Platform), Node.js $(node --version)"
+      - name: Exercise history, source checks, rollback and the offline bundle
+        run: |
+          set -euo pipefail
+          home="$SMOKE_ROOT/home"
+          cli="$SMOKE_ROOT/node_modules/.bin/skillshelf"
+          "$cli" --home "$home" --json sources check
+          "$cli" --home "$home" --json history gitnexus-cli
+          "$cli" --home "$home" --json check
+          bundle="$SMOKE_ROOT/bundle"
+          "$cli" --home "$home" --json export --output "$bundle" --bundle --yes
+          "$cli" --home "$home" --offline --json status
+          echo "Exact public smoke completed for $EXPECTED_VERSION."

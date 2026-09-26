@@ -4,7 +4,7 @@
 
 SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文件，在本机持久保存，并接入你确认过的 Agent 技能目录。日常读取已安装技能不需要账号、连接器或远端控制面。
 
-> **0.2.1 尚未发布。** 本候选在 0.2.0 稳定候选基础上完成一轮全量缺陷修复（含 uninstall 数据目录守卫加固），包含 8 个完整技能套件、目录和 CLI，共 10 个 npm 包、83 项技能。2026-09-24 的 `0.2.0-preview.1` 预览发布完成 7 个技能包后，其余包因 npm E429 中断；7 个技能包当前公共版本仍为 `0.2.0-preview.1`。请使用精确版本安装，不把 `latest` 标签当作新候选。
+> **v0.3.0 候选：GitHub 固定来源 + 双包发布。** 83 项技能默认改为经校验的 GitHub 固定 commit 获取（7 个主来源仓库 + 第一方 SkillShelf 来源提交 S），npm 只发布 CLI 与 metadata-only catalog 两个包；已发布的 0.2.x 技能包保留兼容。0.2.1 历史上为 7/10 部分发布（GitNexus 技能包遇 npm E429），此事实不改写。发布流程见 [docs/release-v0.3.md](docs/release-v0.3.md)，迁移见 [docs/migration-v0.3.md](docs/migration-v0.3.md)。
 >
 > 发布进度与实际验证范围见 [公开验证记录](PUBLIC-VERIFICATION.md)。独立公开源码：[Lilongxi0507/skillshelf](https://github.com/Lilongxi0507/skillshelf)。
 
@@ -19,14 +19,14 @@ SkillShelf 是一个独立的 Node.js CLI：按需下载精选技能的完整文
 
 需要 **Node.js >=22.20.0**；建议使用 Node.js 22 或 24 的最新补丁版。日常管理和指令型技能不需要 Python；第一方搜索/媒体工具的 `run` 需要 **Python >=3.10**。执行其他技能附带的脚本时，仍需遵守该技能自己的依赖说明。SkillShelf 不自动安装解释器或技能依赖。
 
-**0.2.1 正式发布完成后：**
+**v0.3.0 正式发布完成后：**
 
 ```bash
-npm install -g @llx17669475/skillshelf@0.2.1
+npm install -g @llx17669475/skillshelf@0.3.0
 skillshelf
 ```
 
-短期试用也可使用 `npx @llx17669475/skillshelf@0.2.1`。首次获取 CLI 及其依赖可能联网，不受 CLI 启动后的 `--offline` 控制。长期离线使用建议持久安装 CLI。
+短期试用也可使用 `npx @llx17669475/skillshelf@0.3.0`。首次获取 CLI 及其依赖可能联网，不受 CLI 启动后的 `--offline` 控制。长期离线使用建议持久安装 CLI。
 
 无参数进入中文菜单；自动化可使用下列子命令。`--home <目录>`、`--catalog <文件>`、`--offline`、`--json` 等全局选项放在命令前。写操作默认预览确认；非交互环境必须指定 `--yes` 或 `--dry-run`。
 
