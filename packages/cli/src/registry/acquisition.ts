@@ -202,8 +202,11 @@ export async function acquireGithubEntry(ctx: Context, entry: CatalogEntry): Pro
     await chmodTree(staging, true);
     try { await rename(staging, object); }
     catch (cause) {
-      const code = (cause as NodeJS.ErrnoException).code;
-      if (code !== 'EEXIST' && code !== 'ENOTEMPTY') throw cause;
+      // Race convergence: another publisher may have won. On some platforms
+      // (macOS) renaming onto an existing read-only directory yields EACCES
+      // rather than EEXIST/ENOTEMPTY, so decide by checking the destination:
+      // an existing verified object converges; anything else is a real error.
+      if (!(await exists(object))) throw cause;
       const storedReceipt = await checkGithubStore(object, expected, source);
       return { manifest: expected, directory: path.join(object, 'skill'), artifact, origin: 'github', receipt: storedReceipt };
     }

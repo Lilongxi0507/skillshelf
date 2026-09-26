@@ -85,7 +85,7 @@ async function restoreGithubStoreObject(ctx:Context,tree:string,source:import('.
     const receipt={repository:source.acquisition.kind==='github'?source.acquisition.repository:'',commit:source.acquisition.kind==='github'?source.acquisition.commit:'',root:'',destinationPath:memberRoot,archiveReceipt:{compressedSha512:'0'.repeat(128),compressedBytes:0},treeDigest:source.treeDigest,releaseDigest:source.releaseDigest};
     await writeFile(join(staging,'source-receipt.json'),canonicalJson(receipt)+'\n',{flag:'wx',mode:0o444});
     await chmodTree(staging,true);
-    try{await rename(staging,object);}catch(cause){const code=(cause as NodeJS.ErrnoException).code;if(code!=='EEXIST'&&code!=='ENOTEMPTY')throw cause;await verifyTree(join(object,'skill'),view);}
+    try{await rename(staging,object);}catch(cause){if(!(await exists(object)))throw cause;await verifyTree(join(object,'skill'),view);}
   }finally{if(await exists(staging)){await chmodTree(staging,false);await rm(staging,{recursive:true,force:true});}}
 }
 export async function importLibrary(ctx:Context,input:string,options:MutationOptions={}):Promise<OperationResult>{const fixed=await fixedProjectOptions(options);return withMutation(ctx,fixed,()=>importLibraryInternal(ctx,input,fixed));}
