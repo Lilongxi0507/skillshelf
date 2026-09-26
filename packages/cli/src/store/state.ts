@@ -7,6 +7,8 @@ import { ensurePrivateDirectory } from '../runtime/privacy.js';
 import { validateHomeLocation } from '../agents/storage-boundary.js';
 import { canonicalProjectPath } from '../agents/agents.js';
 import { ALLOWED_SCOPE, EXACT_VERSION, canonicalJson, safeRelativePath, validateCatalog, validateIntegrity, validateManifest } from '../validation.js';
+import { validateSourceManifest } from '../registry/manifest.js';
+import { storeManifestFor } from '../registry/acquisition.js';
 import { CLI_VERSION } from '../release.js';
 import { fail } from '../errors.js';
 
@@ -18,7 +20,7 @@ const hash = z.string().regex(/^[a-f0-9]{64}$/u);
 const absolute = bounded.refine((value) => isAbsolute(value) && resolve(value) === value && !/[\0-\x1f\x7f]/u.test(value));
 const timestamp = z.string().datetime();
 const source = z.object({ repository: bounded.optional(), commit: bounded.optional(), path: bounded.optional(), panelRevision: bounded.optional(), url: bounded.optional() }).strict();
-const releaseSchema = z.object({ key: bounded, id: safeName, name: safeName, version: z.string().max(100).regex(EXACT_VERSION), packageName: bounded, integrity: bounded, contentDigest: hash, manifest: z.unknown(), source, installedAt: timestamp, origin: z.enum(['npm', 'local', 'panel']), catalogEntry: z.unknown().optional() }).strict();
+const releaseSchema = z.object({ key: bounded, id: safeName, name: safeName, version: z.string().max(100).regex(EXACT_VERSION), packageName: bounded, integrity: bounded, contentDigest: hash, manifest: z.unknown(), source, installedAt: timestamp, origin: z.enum(['npm', 'local', 'panel', 'github']), catalogEntry: z.unknown().optional(), acquisition: z.unknown().optional(), sourceManifest: z.unknown().optional(), packRevision: z.number().int().nonnegative().optional() }).strict();
 const selectionSchema = z.object({ releaseKey: bounded, pinned: z.boolean(), history: z.array(bounded).max(10_000) }).strict();
 const targetSchema = z.object({ id: bounded, agent: z.enum(['claude-code', 'codex', 'opencode', 'dsh', 'cursor', 'hermes', 'universal', 'custom']), label: z.string().min(1).max(160).refine((value) => !/[\0-\x1f\x7f]/u.test(value)), scope: z.union([z.literal('global'), absolute]), path: absolute, mode: z.enum(['auto', 'link', 'copy']), scanRoots: z.array(absolute).min(1).max(32), discovery: z.enum(['unverified', 'verified']) }).strict();
 const projectionSchema = z.object({ key: hash, path: absolute, releaseKey: bounded, mode: z.enum(['link', 'copy']), targetIds: z.array(bounded).min(1).max(1000), memberId: safeName.optional(), memberPath: bounded.optional() }).strict();
@@ -55,7 +57,18 @@ export function validateState(value: unknown): State {
     safeRelativePath(release.id);
     let manifest;
     try { manifest = validateManifest(release.manifest); } catch { invalid('本地 release manifest 无效'); }
-    if (manifest.id !== release.id || manifest.name !== release.name || manifest.contentDigest !== release.contentDigest) invalid('Release与manifest不一致');
+    if (manifest.id !== release.id || manifest.name !== release.name) invalid('Release与manifest不一致');
+    if (release.origin === 'github') {
+      // The store manifest is the derived legacy view of the source manifest;
+      // identity binds through releaseDigest == contentDigest, not the view digest.
+      if (!release.sourceManifest) invalid('GitHub release 缺少 source manifest');
+      let sourceRecord;
+      try { sourceRecord = validateSourceManifest(release.sourceManifest); } catch { invalid('GitHub release source manifest 无效'); }
+      if (sourceRecord.releaseDigest !== release.contentDigest) invalid('GitHub release 与 source manifest 身份不一致');
+      let view;
+      try { view = storeManifestFor(sourceRecord).manifest; } catch { invalid('GitHub release store manifest 派生失败'); }
+      if (canonicalJson(view) !== canonicalJson(manifest)) invalid('GitHub release store manifest 与来源不一致');
+    } else if (manifest.contentDigest !== release.contentDigest) invalid('Release与manifest不一致');
     if (release.source.path) safeRelativePath(release.source.path);
     if (release.source.repository && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(release.source.repository)) invalid('来源仓库无效');
     if (release.source.commit && !/^[a-f0-9]{40}$/u.test(release.source.commit)) invalid('来源commit无效');
@@ -63,8 +76,13 @@ export function validateState(value: unknown): State {
     if (release.origin === 'npm') {
       if (release.packageName !== `${ALLOWED_SCOPE}/skillshelf-${manifest.schemaVersion === 2 ? 'pack' : 'skill'}-${release.name}`) invalid('非信任npm包名');
       try { validateIntegrity(release.integrity); } catch { invalid('npm release SRI无效'); }
+    } else if (release.origin === 'github') {
+      if (release.packageName !== `github:${release.id}` || release.integrity !== '') invalid('GitHub release 不能冒充其他来源');
     } else if (release.packageName !== `local:${release.id}` || release.integrity !== '' || release.catalogEntry !== undefined) invalid('本地或迁移来源不能冒充npm版本');
-    if (release.catalogEntry !== undefined) {
+    if (release.origin === 'github' && release.catalogEntry !== undefined) {
+      const entry = release.catalogEntry as unknown as Record<string, unknown>;
+      if (canonicalJson(entry.sourceManifest) !== canonicalJson(release.sourceManifest) || entry.id !== release.id || entry.name !== release.name || entry.packageName !== release.packageName || entry.version !== release.version || entry.contentDigest !== release.contentDigest || entry.integrity !== '') invalid('保存的 GitHub 目录快照与release不一致');
+    } else if (release.catalogEntry !== undefined) {
       const entry = release.catalogEntry;
       let checked;
       try { checked = validateCatalog({ schemaVersion: manifest.schemaVersion, catalogVersion: CLI_VERSION, minCliVersion: CLI_VERSION, scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Installed catalog snapshot', skills: [entry.id] }], skills: [entry] }).skills[0]!; }

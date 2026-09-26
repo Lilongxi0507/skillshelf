@@ -5,9 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLI_VERSION, RELEASE_CHANNEL } from '../release.js';
 import { ensurePrivateDirectory as ensurePrivateHome } from '../runtime/privacy.js';
-import type { Catalog, CatalogEntry, Context } from '../types.js';
-import { canonicalJson, EXACT_VERSION, LIMITS, validateCatalog, validatePublicCatalog } from '../validation.js';
+import type { Catalog, CatalogEntry, Context, SourceManifest } from '../types.js';
+import { ALLOWED_SCOPE, canonicalJson, EXACT_VERSION, LIMITS, validateCatalog, validatePublicCatalog } from '../validation.js';
 import { readRegularFile } from '../registry/files.js';
+import { validateSourceManifest } from '../registry/manifest.js';
+
 import { validateStoredHomeLocation } from '../store/state.js';
 import { CATALOG_PACKAGE, fetchRegistryBytes, resolveNpmRelease } from '../registry/http.js';
 import { parseJsonFile, readTarball, validateDataPackage } from '../registry/tar.js';
@@ -32,6 +34,75 @@ function compatible(catalog: Catalog): Catalog {
   if (!EXACT_VERSION.test(cliVersion) || compareVersion(cliVersion, catalog.minCliVersion) < 0) throw new Error(`Catalog requires SkillShelf CLI ${catalog.minCliVersion} or newer`);
   return catalog;
 }
+
+/** Validate a schema-3 fixed-source catalog and bridge it into the internal
+ * catalog shape. Every member's source manifest is deep-validated (Task 1
+ * contract); the internal entry carries the self-contained identity plus a
+ * deterministic non-SemVer display version encoding catalog and pack
+ * revisions, so npm identity fields stay empty and nothing pretends a
+ * GitHub release has an npm version. */
+export function convertSourceCatalog(value: unknown): Catalog {
+  const row = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  if (row.schemaVersion !== 3 || row.scope !== ALLOWED_SCOPE) throw new Error('Untrusted source catalog schema or namespace');
+  if (!Number.isSafeInteger(row.catalogRevision) || (row.catalogRevision as number) < 1) throw new Error('Source catalog revision must be a positive integer');
+  const minimum = typeof row.minCliVersion === 'string' && EXACT_VERSION.test(row.minCliVersion) ? row.minCliVersion : '';
+  if (!minimum) throw new Error('Source catalog requires an exact minCliVersion');
+  const packs = Array.isArray(row.packs) ? row.packs as Array<Record<string, unknown>> : [];
+  const members = Array.isArray(row.members) ? row.members as Array<Record<string, unknown>> : [];
+  if (!packs.length || !members.length || members.length > 1000) throw new Error('Invalid source catalog lists');
+  const packById = new Map<string, { id: string; packRevision: number; members: string[]; title: string; description: string }>();
+  for (const pack of packs) {
+    const id = typeof pack.id === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(pack.id) ? pack.id : '';
+    if (!id || packById.has(id) || !Number.isSafeInteger(pack.packRevision) || (pack.packRevision as number) < 1 || !Array.isArray(pack.members)) throw new Error('Invalid source catalog pack');
+    packById.set(id, { id, packRevision: pack.packRevision as number, members: pack.members as string[], title: typeof pack.title === 'string' && pack.title ? pack.title : id, description: typeof pack.description === 'string' && pack.description ? pack.description : id });
+  }
+  const skills: CatalogEntry[] = [];
+  const categories: Catalog['categories'] = [];
+  const seenCategories = new Set<string>();
+  const seenMembers = new Set<string>();
+  for (const member of members) {
+    const name = typeof member.name === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(member.name) ? member.name : '';
+    if (!name || seenMembers.has(name)) throw new Error('Invalid or duplicate source catalog member');
+    seenMembers.add(name);
+    const pack = typeof member.pack === 'string' ? packById.get(member.pack) : undefined;
+    if (!pack) throw new Error('Source catalog member references an unknown pack: ' + name);
+    let manifest: SourceManifest;
+    try { manifest = validateSourceManifest(member.sourceManifest); } catch { throw new Error('Source catalog member manifest rejected: ' + name); }
+    if (manifest.id !== name || manifest.name !== name) throw new Error('Source catalog member identity mismatch: ' + name);
+    if (member.treeDigest !== manifest.treeDigest || member.releaseDigest !== manifest.releaseDigest) throw new Error('Source catalog member digest mismatch: ' + name);
+    if (manifest.acquisition.kind !== 'github') throw new Error('Source catalog member is not a fixed GitHub acquisition: ' + name);
+    const fileCount = manifest.files.length;
+    const unpackedSize = manifest.files.reduce((sum, file) => sum + file.size, 0);
+    if (member.fileCount !== fileCount || member.unpackedSize !== unpackedSize) throw new Error('Source catalog member inventory mismatch: ' + name);
+    if (!Number.isSafeInteger(member.packRevision) || member.packRevision !== pack.packRevision) throw new Error('Source catalog member pack revision mismatch: ' + name);
+    const curation = (field: string, max = 4096): string => {
+      const value = member[field];
+      if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f\x7f]/u.test(value)) throw new Error('Invalid member ' + field + ': ' + name);
+      return value;
+    };
+    const examples = Array.isArray(member.examples) ? member.examples.map(item => { if (typeof item !== 'string' || !item.trim() || item.length > 4096) throw new Error('Invalid member examples: ' + name); return item; }) : [];
+    const tags = Array.isArray(member.tags) ? member.tags.map(item => { if (typeof item !== 'string' || !item.trim() || item.length > 120) throw new Error('Invalid member tags: ' + name); return item; }) : [];
+    const category = curation('category', 80);
+    if (!seenCategories.has(category)) { seenCategories.add(category); categories.push({ id: category, title: category }); }
+    skills.push({
+      id: name, name, title: curation('title', 200), description: curation('description'), useWhen: curation('useWhen'), examples, category, tags,
+      collection: pack.id, license: curation('license', 200), source: { repository: manifest.acquisition.repository, commit: manifest.acquisition.commit },
+      status: 'stable', runtime: manifest.runtime, packageName: `github:${name}`, version: `${minimum}+r${row.catalogRevision}p${pack.packRevision}`,
+      integrity: '', contentDigest: manifest.releaseDigest, fileCount, unpackedSize,
+      acquisition: manifest.acquisition, sourceManifest: manifest, packRevision: pack.packRevision,
+    });
+  }
+  const collections: Catalog['collections'] = [...packById.values()].map(pack => ({
+    id: pack.id, title: pack.title, description: pack.description,
+    skills: [...pack.members].filter(id => seenMembers.has(id)),
+  })).filter(collection => collection.skills.length);
+  return { schemaVersion: 3, catalogVersion: minimum, minCliVersion: minimum, scope: ALLOWED_SCOPE, catalogRevision: String(row.catalogRevision), categories, collections, skills };
+}
+
+function normalizeLoadedCatalog(value: unknown, strictPublic: boolean): Catalog {
+  if ((value && typeof value === 'object' ? (value as { schemaVersion?: unknown }).schemaVersion : undefined) === 3) return compatible(convertSourceCatalog(value));
+  return compatible(strictPublic ? validatePublicCatalog(value) : validateCatalog(value));
+}
 function unpack(receipt: CatalogReceipt): Catalog {
   if (!receipt || receipt.packageName !== CATALOG_PACKAGE || !EXACT_VERSION.test(receipt.version) || typeof receipt.archive !== 'string' || receipt.archive.length > LIMITS.catalogBytes * 2) throw new Error('Invalid catalog receipt');
   const bytes = Buffer.from(receipt.archive, 'base64');
@@ -40,9 +111,9 @@ function unpack(receipt: CatalogReceipt): Catalog {
   if (files.some(file => !['package/package.json', 'package/catalog.json', 'package/LICENSE', 'package/NOTICE', 'package/README.md'].includes(file.path))) throw new Error('Unexpected catalog package file (skill bodies forbidden)');
   validateDataPackage(parseJsonFile(files.find(file => file.path === 'package/package.json')), CATALOG_PACKAGE, receipt.version);
   if (!files.some(file => file.path === 'package/LICENSE')) throw new Error('Catalog package LICENSE required');
-  const catalog = validatePublicCatalog(parseJsonFile(files.find(file => file.path === 'package/catalog.json')));
-  if (catalog.catalogVersion !== receipt.version) throw new Error('Catalog package/version mismatch');
-  return compatible(catalog);
+  const catalog = normalizeLoadedCatalog(parseJsonFile(files.find(file => file.path === 'package/catalog.json')), true);
+  if (catalog.schemaVersion !== 3 && catalog.catalogVersion !== receipt.version) throw new Error('Catalog package/version mismatch');
+  return catalog;
 }
 async function cacheFile(ctx: Context): Promise<string | undefined> {
   const directory = path.join(path.resolve(ctx.home), 'catalogs'), filename = path.join(directory, 'cache.json');
@@ -53,7 +124,7 @@ async function cacheFile(ctx: Context): Promise<string | undefined> {
   } catch (cause) { if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw cause; }
 }
 export async function loadCatalog(ctx: Context): Promise<Catalog> {
-  if (ctx.catalogPath) return guardCatalog(compatible(validateCatalog(JSON.parse((await readRegularFile(path.resolve(ctx.catalogPath), LIMITS.catalogBytes)).toString('utf8')))));
+  if (ctx.catalogPath) return guardCatalog(normalizeLoadedCatalog(JSON.parse((await readRegularFile(path.resolve(ctx.catalogPath), LIMITS.catalogBytes)).toString('utf8')), false));
   const bootstrap = fileURLToPath(new URL('./bootstrap.json', import.meta.url));
   const packaged=compatible(validatePublicCatalog(JSON.parse((await readRegularFile(bootstrap, LIMITS.catalogBytes)).toString('utf8'))));
   const cached=await cacheFile(ctx);

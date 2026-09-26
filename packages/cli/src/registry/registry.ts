@@ -39,6 +39,14 @@ export async function acquireSkill(ctx: Context, entry: CatalogEntry): Promise<{
  * Local paths are NEVER inherited from a lock; only the explicit active fixture can grant one.
  */
 export async function acquireLockedSkill(ctx: Context, entry: CatalogEntry): Promise<{ manifest: SkillManifest; directory: string; artifact: string }> {
+  // A locked GitHub entry's self-contained source manifest is the trust
+  // boundary (exact repository/commit/mappings/digests), exactly like an
+  // exact npm version+SRI. The legacy npm-shaped validator cannot carry v0.3
+  // fields, so GitHub entries route directly into the verified seam.
+  if (entry.sourceManifest?.acquisition.kind === 'github') {
+    if (entry.localArtifact !== undefined) throw new Error('Project locks cannot authorize local artifacts');
+    return acquireVerifiedEntry(ctx, entry);
+  }
   const normalized = validateCatalog({ schemaVersion: entry.kind === 'pack' ? 2 : 1, catalogVersion: CLI_VERSION, minCliVersion: CLI_VERSION, scope: ALLOWED_SCOPE, categories: [{ id: entry.category, title: entry.category }], collections: [{ id: entry.collection, title: entry.collection, description: 'Explicit project lock', skills: [entry.id] }], skills: [entry] }).skills[0]!;
   if (normalized.localArtifact !== undefined && !ctx.catalogPath) throw new Error('Project locks cannot authorize local artifacts');
   if (ctx.catalogPath) {

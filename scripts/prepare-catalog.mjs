@@ -6,7 +6,7 @@
 // unclassified file fails the whole generation.
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { json, modules, outputDirectory, readRegularFile, runtimeFor, skillRootFor, writeUnchangedOrNew } from './lib.mjs';
+import { json, licenseFor, modules, outputDirectory, readRegularFile, runtimeFor, skillRootFor, writeUnchangedOrNew } from './lib.mjs';
 import { argumentsFor } from './lib.mjs';
 import { packDefinitions } from './packs.mjs';
 
@@ -98,6 +98,13 @@ export function expandSourceConfig(config) {
       packRevision: packRevisions[packIdFor(definition)],
       fixtureRoot: path.join('skills', definition.snapshot || definition.name, 'skill'),
       acquisition: { kind: 'github', repository: tuple.repository, commit: tuple.commit, mappings, overlays },
+      title: definition.title,
+      description: definition.description,
+      useWhen: definition.useWhen,
+      examples: definition.examples ?? [],
+      category: definition.category,
+      tags: definition.tags ?? [],
+      license: licenseFor(definition),
     };
   });
   if (members.length !== 83) throw new Error('v0.3 config must describe all 83 members: ' + members.length);
@@ -209,6 +216,13 @@ export async function preparePublicCatalog(expanded, built, { catalogRevision } 
       fileCount: entry.files.length,
       unpackedSize: entry.files.reduce((sum, file) => sum + file.size, 0),
       runtime: entry.runtime,
+      title: member.title,
+      description: member.description,
+      useWhen: member.useWhen,
+      examples: member.examples,
+      category: member.category,
+      tags: member.tags,
+      license: member.license,
     });
   }
   const packs = [];
@@ -230,6 +244,8 @@ export async function preparePublicCatalog(expanded, built, { catalogRevision } 
       unpackedSize: files.reduce((sum, file) => sum + file.size, 0),
       members: manifestList.map((entry) => entry.id),
       repositories,
+      title: id,
+      description: `${id} 固定来源技能包`,
     });
   }
   const catalog = {
