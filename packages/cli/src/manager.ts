@@ -177,16 +177,68 @@ export async function pinSkills(ctx:Context,ids:string[],pinned:boolean,options:
   for(const id of ids){await getRelease(state,id,scope==='global'?undefined:scope);selected[id]={...selected[id]!,pinned};}if(options.dryRun)return{ids,pinned,scope,dryRun:true};
   setSelections(next,scope,selected);await transact(ctx,state,next,await projectChanges(state,next,scope,(await loadCatalog(ctx)).catalogVersion));return{ids,pinned,scope};
 }
-export async function rollbackSkill(ctx:Context,id:string,version:string|undefined,options:MutationOptions={}):Promise<OperationResult>{
+export async function rollbackSkill(ctx:Context,id:string,version:string|undefined,options:MutationOptions&{revision?:string}={}):Promise<OperationResult>{
   const state=await loadState(ctx),next=structuredClone(state),scope=await scopeOf(options),selected={...selections(next,scope)},old=selected[id];if(!old)fail('USAGE','技能未安装');
-  const candidates=old.history.map(key=>state.releases[key]).filter((r):r is Release=>!!r);const release=version?candidates.find(r=>r.version===version):candidates.at(-1);if(!release)fail('OFFLINE','没有保留的对应历史版本');await verifyTree(storePath(ctx,release.contentDigest),release.manifest);
-  if(options.dryRun)return{id,from:state.releases[old.releaseKey]!.version,to:release.version,scope,dryRun:true};
+  const candidates=old.history.map(key=>state.releases[key]).filter((r):r is Release=>!!r);
+  if(options.revision!==undefined&&!/^[^@\s]+@[^#\s]+#[a-f0-9]{16}(?::[a-f0-9]{16})?$/u.test(options.revision))fail('USAGE','revision 必须是保留的精确 release 键');
+  const release=options.revision!==undefined?candidates.find(r=>r.key===options.revision):version?candidates.find(r=>r.version===version):candidates.at(-1);if(!release)fail('OFFLINE','没有保留的对应历史版本');await verifyTree(storePath(ctx,release.contentDigest),release.manifest);
+  if(options.dryRun)return{id,from:state.releases[old.releaseKey]!.version,to:release.version,revision:release.key,scope,dryRun:true};
   selected[id]={releaseKey:release.key,pinned:old.pinned,history:[...old.history.filter(k=>k!==release.key),old.releaseKey]};setSelections(next,scope,selected);
   const changes=await reconcile(ctx,state,next,scope,new Set([id]));changes.push(...await projectChanges(state,next,scope,(await loadCatalog(ctx)).catalogVersion));await transact(ctx,state,next,changes);return{id,version:release.version,scope};
 }
+const sourceChanged=(old:Release,latest:CatalogEntry):boolean=>{
+  if(latest.sourceManifest?.acquisition.kind==='github')return latest.contentDigest!==old.contentDigest;
+  return latest.contentDigest!==old.contentDigest||latest.version!==old.version||latest.integrity!==old.integrity;
+};
+/** Installed release history for one skill: current identity plus every retained release. */
+export async function skillHistory(ctx:Context,id:string,project?:string):Promise<OperationResult>{
+  const state=await loadState(ctx),scope=project?await canonicalProjectPath(project):'global';
+  const selection=selections(state,scope)[id];if(!selection)fail('USAGE','此范围未安装技能：'+id);
+  const current=state.releases[selection.releaseKey]!;
+  return {id,scope,pinned:selection.pinned,
+    current:{key:current.key,version:current.version,origin:current.origin,contentDigest:current.contentDigest,packRevision:current.packRevision},
+    history:selection.history.map(key=>{const release=state.releases[key]!;return{key,version:release.version,origin:release.origin,contentDigest:release.contentDigest,packRevision:release.packRevision};})};
+}
+
+/** npm→GitHub source migration with preview and atomic apply. Pinned entries
+ * are skipped by default; the old release always stays in history. */
+export async function migrateSources(ctx:Context,options:MutationOptions&{ids?:string[]}={}):Promise<OperationResult>{
+  const fixed=await fixedProjectOptions(options);
+  return withMutation(ctx,{...fixed,dryRun:fixed.dryRun},async()=>{
+    const catalog=await loadCatalog(ctx),state=await loadState(ctx),scope=await scopeOf(fixed),selected=selections(state,scope);
+    const migrations=[];
+    for(const [id,selection] of Object.entries(selected)){
+      if(options.ids?.length&&!options.ids.includes(id))continue;
+      const old=state.releases[selection.releaseKey]!;
+      const latest=catalog.skills.find(entry=>entry.id===id&&entry.sourceManifest?.acquisition.kind==='github');
+      if(!latest)continue;
+      if(old.origin==='github')continue;
+      migrations.push({id,from:{origin:old.origin,version:old.version,packageName:old.packageName,contentDigest:old.contentDigest},to:{origin:'github',repository:latest.source.repository,commit:latest.source.commit,packRevision:latest.packRevision,releaseDigest:latest.contentDigest},pinned:selection.pinned,migratable:!selection.pinned,reason:selection.pinned?'pinned：默认不迁移固定版本，请先显式 unpin':undefined});
+    }
+    const preview={scope:fixed.project??'global',migrations,skipped:migrations.filter(row=>!row.migratable).map(row=>row.id)};
+    const targets=migrations.filter(row=>row.migratable).map(row=>row.id);
+    if(fixed.dryRun||!targets.length)return{...preview,dryRun:true};
+    if(fixed.yes!==true)fail('USAGE','迁移需确认预览后使用 yes:true');
+    const install=await installSkillsInternal(ctx,targets,{...fixed,agents:[]});
+    const next=await loadState(ctx);
+    return {...preview,migrated:targets.map(id=>({id,releaseKey:selections(next,scope)[id]?.releaseKey,origin:'github'})),install};
+  });
+}
+
 export async function checkUpdates(ctx:Context,options:MutationOptions={}):Promise<OperationResult>{
   const catalog=ctx.offline?await loadCatalog(ctx):await fetchLatestCatalog(ctx);const state=await loadState(ctx),scope=await scopeOf(options);
-  return{catalogVersion:catalog.catalogVersion,scope,offline:ctx.offline,updates:Object.entries(selections(state,scope)).flatMap(([id,s])=>{const old=state.releases[s.releaseKey]!,latest=catalog.skills.find(e=>e.id===id);return latest&&(latest.contentDigest!==old.contentDigest||latest.version!==old.version||latest.integrity!==old.integrity)?[{id,from:old.version,to:latest.version,pinned:s.pinned,files:latest.fileCount}]:[]})};
+  return{catalogVersion:catalog.catalogVersion,scope,offline:ctx.offline,updates:Object.entries(selections(state,scope)).flatMap(([id,s])=>{const old=state.releases[s.releaseKey]!,latest=catalog.skills.find(e=>e.id===id);if(!latest||!sourceChanged(old,latest))return[];
+    const row:Record<string,unknown>={id,from:old.version,to:latest.version,pinned:s.pinned,files:latest.fileCount};
+    if(latest.sourceManifest?.acquisition.kind==='github'){
+      row.source='github';row.repository=latest.source.repository;row.fromOrigin=old.origin;
+      row.fromReleaseDigest=old.contentDigest;row.toReleaseDigest=latest.contentDigest;row.toPackRevision=latest.packRevision;
+      const before=old.sourceManifest,after=latest.sourceManifest;
+      if(before){row.fromCommit=before.acquisition.kind==='github'?before.acquisition.commit:undefined;row.fromPackRevision=before.packRevision;
+        const oldFiles=new Map(before.files.map(f=>[f.path,f]as const)),newFiles=new Map(after.files.map(f=>[f.path,f]as const));
+        row.filesDiff={added:[...newFiles.keys()].filter(p=>!oldFiles.has(p)).sort(),removed:[...oldFiles.keys()].filter(p=>!newFiles.has(p)).sort(),changed:[...newFiles].filter(([p,f])=>oldFiles.has(p)&&canonicalJson(oldFiles.get(p))!==canonicalJson(f)).map(([p])=>p).sort()};
+        row.runtimeChanged=canonicalJson(before.runtime)!==canonicalJson(after.runtime);}
+    }
+    return[row];})};
 }
 export async function updateSkills(ctx:Context,ids:string[],options:MutationOptions={}):Promise<OperationResult>{
   const fixed=await fixedProjectOptions(options);
@@ -195,7 +247,7 @@ export async function updateSkills(ctx:Context,ids:string[],options:MutationOpti
   if(!ctx.offline&&!ctx.catalogPath)await refreshCatalog(ctx);
   const catalog=await loadCatalog(ctx),state=await loadState(ctx),selected=selections(state,await scopeOf(fixed));
   for(const id of ids)if(!selected[id])fail('USAGE','此范围未安装：'+id);
-  const wanted=(ids.length?ids:Object.keys(selected)).filter(id=>!selected[id]!.pinned&&catalog.skills.some(e=>{const old=state.releases[selected[id]!.releaseKey]!;return e.id===id&&(e.contentDigest!==old.contentDigest||e.version!==old.version||e.integrity!==old.integrity);}));
+  const wanted=(ids.length?ids:Object.keys(selected)).filter(id=>!selected[id]!.pinned&&catalog.skills.some(e=>{const old=state.releases[selected[id]!.releaseKey]!;return e.id===id&&sourceChanged(old,e);}));
   if(!wanted.length)return{updated:[],message:'没有需要更新的未固定技能'};
   return installSkills(ctx,wanted,{...fixed,agents:[]});
 }
