@@ -204,14 +204,14 @@ jobs:
       - name: Publish the metadata-only catalog first
         run: |
           set -euo pipefail
-          test -f "release/catalog-$EXPECTED_VERSION.tgz"
-          npm publish --access public --provenance "release/catalog-$EXPECTED_VERSION.tgz"
+          test -f "$PWD/release/catalog-$EXPECTED_VERSION.tgz"
+          npm publish --access public --provenance "$PWD/release/catalog-$EXPECTED_VERSION.tgz"
 
       - name: Publish the CLI
         run: |
           set -euo pipefail
-          test -f "release/skillshelf-$EXPECTED_VERSION.tgz"
-          npm publish --access public --provenance "release/skillshelf-$EXPECTED_VERSION.tgz"
+          test -f "$PWD/release/skillshelf-$EXPECTED_VERSION.tgz"
+          npm publish --access public --provenance "$PWD/release/skillshelf-$EXPECTED_VERSION.tgz"
 
       - name: Read back the exact registry versions, tags, integrity and provenance
         run: |
