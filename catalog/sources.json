@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "@llx17669475",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "repositories": {
     "taste": {
       "repository": "Leonxlnx/taste-skill",
