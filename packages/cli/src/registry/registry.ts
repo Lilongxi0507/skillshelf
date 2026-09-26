@@ -12,7 +12,9 @@ import { CLI_VERSION } from '../release.js';
 import { localArtifactPath, readRegularFile } from './files.js';
 import { fetchRegistryBytes, resolveNpmRelease } from './http.js';
 import { extractVerifiedSkill, verifySkillArchive } from './tar.js';
+import { acquireGithubEntry } from './acquisition.js';
 export { assertIntegrity, extractVerifiedSkill, readTarball, verifySkillArchive } from './tar.js';
+export { acquireGithubEntry } from './acquisition.js';
 
 async function exists(filename: string): Promise<boolean> {
   try { await lstat(filename); return true; } catch (cause) { if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return false; throw cause; }
@@ -52,6 +54,12 @@ export async function acquireLockedSkill(ctx: Context, entry: CatalogEntry): Pro
   return acquireVerifiedEntry(ctx, normalized);
 }
 async function acquireVerifiedEntry(ctx: Context, entry: CatalogEntry): Promise<{ manifest: SkillManifest; directory: string; artifact: string }> {
+  // v0.3 GitHub entries acquire through the unified dispatcher; their trusted
+  // source manifest is the self-contained identity (validated by the adapter
+  // on every acquisition). npm and explicit local fixtures keep this path.
+  if (entry.sourceManifest?.acquisition.kind === 'github') {
+    return acquireGithubEntry(ctx, entry);
+  }
   await validateStoredHomeLocation(ctx);
   const home = path.resolve(ctx.home), store = path.join(home, 'store'), artifacts = path.join(home, 'artifacts');
   const object = path.join(store, entry.contentDigest);

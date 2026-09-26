@@ -203,6 +203,7 @@ export async function preparePublicCatalog(expanded, built, { catalogRevision } 
       pack: member.pack,
       packRevision: entry.packRevision,
       acquisition: entry.acquisition,
+      sourceManifest: entry,
       treeDigest: entry.treeDigest,
       releaseDigest: entry.releaseDigest,
       fileCount: entry.files.length,
