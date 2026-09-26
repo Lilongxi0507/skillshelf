@@ -114,7 +114,7 @@ export function expandSourceConfig(config) {
     if (!row.sourcePath || !row.reason) throw new Error('Exclusions need a pinned source path and reviewed reason');
     return { repository: source.repository, commit: source.commit, sourcePath: row.sourcePath, reason: row.reason };
   });
-  return { sourceSchema: 3, catalogRevision: config.v3.catalogRevision, firstParty, members, exclusions };
+  return { sourceSchema: 3, catalogRevision: config.v3.catalogRevision, firstParty, members, exclusions, authorizations: config.v3.authorizations ?? {} };
 }
 
 /** Classify every fixture file and build schema-3 source manifests for all members. */
@@ -183,6 +183,23 @@ export async function buildSourceManifests(expanded, options = {}) {
     payload.treeDigest = manifest.digestSourceTree(files);
     payload.acquisition.manifestDigest = manifest.digestSourceMappings(payload.acquisition.mappings, payload.acquisition.overlays);
     payload.releaseDigest = manifest.digestSourceRelease(payload);
+    const declaredAuthorization = (expanded.authorizations ?? {})[member.name];
+    if (declaredAuthorization) {
+      payload.authorization = {
+        kind: 'first-party',
+        issuer: declaredAuthorization.issuer,
+        repository: member.acquisition.repository,
+        commit: member.acquisition.commit,
+        treeDigest: payload.treeDigest,
+        releaseDigest: payload.releaseDigest,
+        entrypoint: declaredAuthorization.entrypoint,
+        tool: declaredAuthorization.tool,
+        minimumVersion: declaredAuthorization.minimumVersion,
+        dependencies: declaredAuthorization.dependencies,
+        providers: declaredAuthorization.providers,
+        requiresNetwork: declaredAuthorization.requiresNetwork,
+      };
+    }
     const validated = manifest.validateSourceManifest(payload);
     totalFiles += validated.files.length;
     digests[member.name] = validated.releaseDigest;

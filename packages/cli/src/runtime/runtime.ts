@@ -13,6 +13,8 @@ import { loadCatalog } from '../catalog/catalog.js';
 import { validateStoredHomeLocation } from '../store/state.js';
 import { readRegularFile } from '../registry/files.js';
 import { verifySkillArchive } from '../registry/tar.js';
+import { validateSourceManifest } from '../registry/manifest.js';
+import { memberRootFor } from '../registry/acquisition.js';
 import { assertNoLinkAncestors, assertPrivatePath, canonicalExistingDirectory, canonicalStorageHome, createPrivateFile, ensurePrivateDirectory, localCommand, sanitizedEnvironment, temporaryName } from './privacy.js';
 import { loadProviders, providerSecret, type ProviderConfig, type ProviderKind, type ProviderResource } from './providers.js';
 export { addProvider, listProviders, removeProvider } from './providers.js';
@@ -38,7 +40,18 @@ const RUNNABLE: Record<string, readonly ProviderKind[]> = {
 
 function isMissing(error: unknown): boolean { return (error as NodeJS.ErrnoException).code === 'ENOENT'; }
 
+const FIRST_PARTY_REPOSITORY = 'Lilongxi0507/skillshelf';
 function approvedEntrypoint(release: Release): string {
+  if (release.origin === 'github') {
+    const source = release.sourceManifest;
+    if (!source || source.acquisition.kind !== 'github') fail('UNAVAILABLE', 'GitHub execution requires the installed reviewed source manifest');
+    const root = memberRootFor(source.acquisition.mappings);
+    const declared = source.runtime.entrypoint;
+    if (!declared || declared !== `${root}/scripts/run.py`) fail('UNAVAILABLE', 'Only the approved first-party scripts/run.py entrypoint can execute');
+    const entrypoint = release.manifest.runtime.entrypoint;
+    if (!entrypoint || entrypoint !== declared.slice(root.length + 1)) fail('INTEGRITY', 'Store manifest entrypoint does not match the reviewed source entrypoint');
+    return entrypoint;
+  }
   if (release.manifest.schemaVersion === 1) return 'scripts/run.py';
   const members = release.manifest.members;
   const member = members?.[0];
@@ -50,8 +63,27 @@ function approvedEntrypoint(release: Release): string {
 
 function requireCurated(release: Release): readonly ProviderKind[] {
   const kinds = Object.hasOwn(RUNNABLE, release.id) ? RUNNABLE[release.id]! : undefined;
+  if (!kinds) fail('UNAVAILABLE', 'Only curated first-party SkillShelf search/media releases can execute');
+  if (release.origin === 'github') {
+    const source = release.sourceManifest;
+    if (!source || source.acquisition.kind !== 'github') fail('UNAVAILABLE', 'GitHub execution requires the installed reviewed source manifest');
+    if (source.acquisition.repository !== FIRST_PARTY_REPOSITORY) fail('UNAVAILABLE', 'Only the reviewed SkillShelf first-party repository may run; third-party or fork sources are not executable');
+    if (source.id !== release.id || source.name !== release.name) fail('INTEGRITY', 'Installed source manifest identity does not match the release');
+    if (source.releaseDigest !== release.contentDigest) fail('INTEGRITY', 'Installed source manifest digest does not match the release');
+    const authorization = source.authorization;
+    if (!authorization || authorization.kind !== 'first-party' || authorization.repository !== source.acquisition.repository || authorization.commit !== source.acquisition.commit) fail('UNAVAILABLE', 'This GitHub release carries no matching first-party execution authorization');
+    if (authorization.treeDigest !== source.treeDigest || authorization.releaseDigest !== source.releaseDigest) fail('INTEGRITY', 'First-party authorization does not bind this exact tree');
+    const runtime = source.runtime;
+    if (runtime.kind !== 'python' || runtime.requiresNetwork !== true) fail('UNAVAILABLE', 'This first-party release does not declare its approved Python entrypoint');
+    if (runtime.entrypoint !== authorization.entrypoint) fail('INTEGRITY', 'First-party runtime entrypoint does not match the authorization receipt');
+    const storeRuntime = release.manifest.runtime;
+    if (storeRuntime.kind !== runtime.kind || storeRuntime.requiresNetwork !== runtime.requiresNetwork) fail('INTEGRITY', 'Store manifest runtime does not match the reviewed source runtime');
+    if (runtime.dependencies?.length) fail('DEPENDENCY', 'The first release runner supports standard-library-only curated scripts; dependencies are never installed automatically');
+    if (!runtime.providers || runtime.providers.length !== kinds.length || runtime.providers.some((kind) => !kinds.includes(kind))) fail('INTEGRITY', 'First-party runtime provider declaration does not match the curated skill');
+    return kinds;
+  }
   const packageKind = release.manifest.schemaVersion === 2 ? 'pack' : 'skill';
-  if (!kinds || release.origin !== 'npm' || release.manifest.id !== release.id || release.manifest.name !== release.name || release.packageName !== `${ALLOWED_SCOPE}/skillshelf-${packageKind}-${release.id}`) fail('UNAVAILABLE', 'Only catalog-verified npm first-party SkillShelf search/media releases can execute; local and panel imports are not executable');
+  if (release.origin !== 'npm' || release.manifest.id !== release.id || release.manifest.name !== release.name || release.packageName !== `${ALLOWED_SCOPE}/skillshelf-${packageKind}-${release.id}`) fail('UNAVAILABLE', 'Only catalog-verified npm first-party SkillShelf search/media releases can execute; local and panel imports are not executable');
   const runtime = release.manifest.runtime;
   if (runtime.kind !== 'python' || runtime.entrypoint !== approvedEntrypoint(release) || runtime.requiresNetwork !== true) fail('UNAVAILABLE', 'This first-party release does not declare its approved Python entrypoint');
   if (runtime.dependencies?.length) fail('DEPENDENCY', 'The first release runner supports standard-library-only curated scripts; dependencies are never installed automatically');
@@ -111,6 +143,22 @@ export async function verifyExecutionRelease(ctx: Context, release: Release): Pr
 async function verifiedDirectory(ctx: Context, release: Release): Promise<string> {
   // Installation preserves this snapshot only for a verified catalog/explicitly trusted project lock.
   // An imported local tree or a self-asserted source.repository is never an execution authority.
+  if (release.origin === 'github') {
+    const source = release.sourceManifest;
+    if (!source || source.acquisition.kind !== 'github') fail('INTEGRITY', 'GitHub release is missing its reviewed source manifest');
+    validateSourceManifest(source);
+    const home = await canonicalStorageHome(ctx.home);
+    const object = path.join(home, 'store', release.contentDigest);
+    const directory = path.join(object, 'skill');
+    await assertNoLinkAncestors(directory);
+    const receipt = JSON.parse((await readRegularFile(path.join(object, 'source-receipt.json'), LIMITS.catalogBytes)).toString('utf8')) as { repository?: string; commit?: string; treeDigest?: string; releaseDigest?: string };
+    if (receipt.repository !== source.acquisition.repository || receipt.commit !== source.acquisition.commit || receipt.treeDigest !== source.treeDigest || receipt.releaseDigest !== source.releaseDigest) fail('INTEGRITY', 'GitHub source receipt does not match the installed reviewed identity');
+    await verifyTree(directory, release.manifest);
+    const entrypoint = path.join(directory, approvedEntrypoint(release));
+    const entryInfo = await lstat(entrypoint);
+    if (!entryInfo.isFile() || entryInfo.isSymbolicLink()) fail('INTEGRITY', 'Approved runtime entrypoint is not a regular file');
+    return directory;
+  }
   const snapshot = release.catalogEntry;
   const entry = snapshot
     ? validateCatalog({ schemaVersion: release.manifest.schemaVersion, catalogVersion: CLI_VERSION, minCliVersion: CLI_VERSION, scope: ALLOWED_SCOPE,

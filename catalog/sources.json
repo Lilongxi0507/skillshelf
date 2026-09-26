@@ -57,15 +57,48 @@
       }
     },
     "legalOverlays": {
-      "taste": [{ "origin": "license", "sourcePath": "LICENSE" }],
-      "uiux": [{ "origin": "license", "sourcePath": "LICENSE" }],
-      "matt": [{ "origin": "license", "sourcePath": "LICENSE" }],
-      "superpowers": [{ "origin": "license", "sourcePath": "LICENSE" }],
-      "gitnexus": [
-        { "origin": "license", "sourcePath": "LICENSE" },
-        { "origin": "authored", "repository": "first-party", "sourcePath": "skills/gitnexus-cli/skill/NOTICE" }
+      "taste": [
+        {
+          "origin": "license",
+          "sourcePath": "LICENSE"
+        }
       ],
-      "archify": [{ "origin": "authored", "repository": "first-party", "sourcePath": "skills/archify/skill/THIRD_PARTY_NOTICES" }]
+      "uiux": [
+        {
+          "origin": "license",
+          "sourcePath": "LICENSE"
+        }
+      ],
+      "matt": [
+        {
+          "origin": "license",
+          "sourcePath": "LICENSE"
+        }
+      ],
+      "superpowers": [
+        {
+          "origin": "license",
+          "sourcePath": "LICENSE"
+        }
+      ],
+      "gitnexus": [
+        {
+          "origin": "license",
+          "sourcePath": "LICENSE"
+        },
+        {
+          "origin": "authored",
+          "repository": "first-party",
+          "sourcePath": "skills/gitnexus-cli/skill/NOTICE"
+        }
+      ],
+      "archify": [
+        {
+          "origin": "authored",
+          "repository": "first-party",
+          "sourcePath": "skills/archify/skill/THIRD_PARTY_NOTICES"
+        }
+      ]
     },
     "memberMappings": {
       "gitnexus-pr-swarm-review": [
@@ -112,7 +145,32 @@
         "sourcePath": "skills/productivity/README.md",
         "reason": "Upstream category documentation outside every reviewed member directory; not member content."
       }
-    ]
+    ],
+    "authorizations": {
+      "skillshelf-web-search": {
+        "issuer": "SkillShelf",
+        "entrypoint": "skills/skillshelf-web-search/scripts/run.py",
+        "providers": [
+          "search"
+        ],
+        "requiresNetwork": true,
+        "minimumVersion": "3.10",
+        "dependencies": [],
+        "tool": "skillshelf-web-search"
+      },
+      "skillshelf-media-generation": {
+        "issuer": "SkillShelf",
+        "entrypoint": "skills/skillshelf-media-generation/scripts/run.py",
+        "providers": [
+          "image",
+          "video"
+        ],
+        "requiresNetwork": true,
+        "minimumVersion": "3.10",
+        "dependencies": [],
+        "tool": "skillshelf-media-generation"
+      }
+    }
   },
   "categories": [
     {

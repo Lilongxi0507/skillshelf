@@ -60,7 +60,10 @@ export function storeManifestFor(source: SourceManifest): { manifest: SkillManif
     if (file.path !== memberRoot && !file.path.startsWith(memberRoot + '/')) throw new Error(`Selected file escapes the member root: ${file.path}`);
     return { path: file.path.slice(memberRoot.length + 1), size: file.size, sha256: file.sha256, executable: file.mode === 100755 };
   }).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
-  const manifest: SkillManifest = { schemaVersion: 1, id: source.id, name: source.name, files, runtime: source.runtime, contentDigest: '' };
+  const runtime = source.runtime.entrypoint
+    ? { ...source.runtime, entrypoint: source.runtime.entrypoint.slice(memberRoot.length + 1) }
+    : source.runtime;
+  const manifest: SkillManifest = { schemaVersion: 1, id: source.id, name: source.name, files, runtime, contentDigest: '' };
   manifest.contentDigest = digestManifest(manifest.files);
   return { manifest, memberRoot };
 }

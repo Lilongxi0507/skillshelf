@@ -20,7 +20,7 @@ import { CLI_VERSION } from '../packages/cli/dist/release.js';
 
 const sha = (data, algorithm = 'sha256') => createHash(algorithm).update(data).digest('hex');
 const commit = 'a'.repeat(40), repository = 'acme/tools', root = `tools-${commit}`;
-const data = Buffer.from('complete skill\n'), executable = Buffer.from('#!/bin/sh\necho fixture\n');
+const data = Buffer.from('---\nname: demo\ndescription: Demo skill\n---\nComplete body.\n'), executable = Buffer.from('#!/bin/sh\necho fixture\n');
 const license = Buffer.from('MIT\n');
 const file = (path_, bytes, mode = 100644, origin) => ({ path: path_, size: bytes.length, sha256: sha(bytes), mode, ...(origin ? { origin } : {}) });
 function rebuild(manifest) {
@@ -143,7 +143,7 @@ test('a github member installs end to end from a schema-3 catalog', async t => {
   assert.equal(release.source.repository, repository);
   assert.equal(release.catalogEntry.sourceManifest.releaseDigest, release.contentDigest);
   const storeObject = path.join(home, 'store', demoManifest().releaseDigest);
-  assert.equal(await readFile(path.join(storeObject, 'skill', 'SKILL.md'), 'utf8'), 'complete skill\n');
+  assert.equal((await readFile(path.join(storeObject, 'skill', 'SKILL.md'), 'utf8')).includes('Complete body.'), true);
   // Re-install converges on the store without another fetch.
   await installSkills(ctx, ['demo'], { agents: [] });
   assert.equal(calls.length, 1);
@@ -177,4 +177,49 @@ test('a frozen project lock restores a github member offline from its self-conta
   const after = await loadState({ home, offline: true, catalogPath: catalogFile });
   assert.ok(after.projects[project].selections.demo);
   assert.equal(after.releases[after.projects[project].selections.demo.releaseKey].origin, 'github');
+});
+
+// --- Task 6: GitHub bundles export/import with trust downgrade without a receipt ---
+const core = await import('../packages/cli/dist/core.js');
+const { exportSkills: exportLibrary, importSkills } = core;
+
+test('github bundles export and import; trust only comes from a matching catalog receipt', async t => {
+  const directory = await scratch(t);
+  const home = path.join(directory, 'home');
+  const { mkdir } = await import('node:fs/promises');
+  await mkdir(home, { recursive: true, mode: 0o700 });
+  const catalogFile = await writeV3Catalog(directory);
+  mockFetch(t);
+  const ctx = { home, offline: false, catalogPath: catalogFile };
+  await installSkills(ctx, ['demo'], { agents: [] });
+  const bundleDirectory = path.join(directory, 'bundle-out');
+  const exported = await exportLibrary(ctx, bundleDirectory, { bundle: true, ids: ['demo'] });
+  assert.equal(exported.skills.length, 1);
+  const manifest = JSON.parse(await readFile(path.join(bundleDirectory, 'skillshelf-export.json'), 'utf8'));
+  assert.equal(manifest.skills[0].origin, 'github');
+  assert.ok(manifest.skills[0].sourceManifest);
+  assert.ok(!manifest.skills[0].artifact, 'github exports never claim npm artifacts');
+  assert.ok(await readdir(path.join(bundleDirectory, 'contents')).then(names => names.length === 1));
+
+  // Import with the v3 catalog present: the exact receipt upgrades to github origin.
+  const homeB = await scratch(t);
+  const catalogB = await writeV3Catalog(homeB);
+  const ctxB = { home: homeB, offline: true, catalogPath: catalogB };
+  const restored = await importSkills(ctxB, bundleDirectory, {});
+  assert.deepEqual(restored.imported, ['demo']);
+  const stateB = await loadState(ctxB);
+  const releaseB = stateB.releases[stateB.selections.demo.releaseKey];
+  assert.equal(releaseB.origin, 'github');
+  assert.equal(releaseB.sourceManifest.releaseDigest, releaseB.contentDigest);
+  assert.equal((await readFile(path.join(homeB, 'store', releaseB.contentDigest, 'skill', 'SKILL.md'), 'utf8')).includes('Complete body.'), true);
+
+  // Import without a matching catalog: bundle self-claims never create trust — local only.
+  const homeC = await scratch(t);
+  const ctxC = { home: homeC, offline: true };
+  const restoredC = await importSkills(ctxC, bundleDirectory, {});
+  assert.deepEqual(restoredC.imported, ['demo']);
+  const stateC = await loadState(ctxC);
+  const releaseC = stateC.releases[stateC.selections.demo.releaseKey];
+  assert.equal(releaseC.origin, 'local', 'a bundle without a trusted receipt restores as local content only');
+  assert.equal(releaseC.packageName, 'local:demo');
 });
