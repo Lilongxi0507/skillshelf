@@ -75,14 +75,15 @@ jobs:
       - name: Pack the exact CLI archive
         run: |
           set -euo pipefail
-          npm pack --ignore-scripts --pack-destination "$CATALOG_OUTPUT"
-          test "$(find "$CATALOG_OUTPUT" -maxdepth 1 -name '*.tgz' | wc -l)" -eq 1
+          npm pack -w packages/cli --ignore-scripts --pack-destination "$CATALOG_OUTPUT"
+          test "$(find "$CATALOG_OUTPUT" -maxdepth 1 -name 'llx17669475-skillshelf-*.tgz' | wc -l)" -eq 1
 
       - name: Compose the two-package publication plan and audit the CLI archive
         run: |
           set -euo pipefail
           cli_tarball="$(find "$CATALOG_OUTPUT" -maxdepth 1 -name 'llx17669475-skillshelf-*.tgz')"
-          node scripts/prepare-release.mjs --v3 --output "$CATALOG_OUTPUT" --cli-tarball "$(pwd)/$cli_tarball" --catalog "$CATALOG_OUTPUT/catalog.public.json"
+          test -n "$cli_tarball"
+          node scripts/prepare-release.mjs --v3 --output "$CATALOG_OUTPUT" --cli-tarball "$cli_tarball" --catalog "$CATALOG_OUTPUT/catalog.public.json"
           node scripts/audit-cli-package.mjs "$cli_tarball"
           node --input-type=module -e '
             import { readFileSync } from "node:fs";
